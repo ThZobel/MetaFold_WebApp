@@ -589,50 +589,49 @@ createApp({
       } catch (e) { stopScan(); alert(tr('Kamera nicht verfügbar') + ': ' + e.message); }
     };
 
+
     // Sprach-Diktat (Web Speech API)
-    const activeSpeechField = ref(null);
-    let recognition = null;
-    const getVal = (k) => k === '__general' ? generalNote.value : (formData.value[k] || '');
-    const setVal = (k, v) => { if (k === '__general') generalNote.value = v; else formData.value[k] = v; };
-    let target = null, keepOn = false, base = '';
-    const initSpeech = () => {
-      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SR) return null;
-      const rec = new SR();
-      rec.interimResults = true;
-      rec.onresult = (e) => {
-        // Immer aus allen Ergebnissen neu aufbauen: bestehender Text + Gesprochenes
-        let fin = '', interim = '';
-        for (let i = 0; i < e.results.length; i++) {
-          const txt = e.results[i][0].transcript.trim();
-          if (e.results[i].isFinal) fin += (fin ? ' ' : '') + txt; else interim += (interim ? ' ' : '') + txt;
-        }
-        if (target) setVal(target, [base, fin, interim].filter(Boolean).join(' '));
-      };
-      rec.onerror = (e) => {
-        if (!['no-speech', 'aborted'].includes(e.error)) { console.error('Sprachfehler:', e.error); keepOn = false; }
-      };
-      rec.onend = () => {
-        if (keepOn && target) {           // Sprachnotiz läuft weiter, bis der Nutzer stoppt
-          base = getVal(target);
-          try { rec.start(); return; } catch (_) { /* fällt auf Ende zurück */ }
-        }
-        keepOn = false; target = null; activeSpeechField.value = null;
-      };
-      return rec;
-    };
-    const toggleSpeech = (key) => {
-      if (!window.isSecureContext) { alert(tr('Spracherkennung erfordert eine sichere Verbindung (HTTPS)!')); return; }
-      if (activeSpeechField.value) { keepOn = false; recognition?.stop(); return; }  // Stopp: letzter Rest wird noch übernommen
-      if (!recognition) recognition = initSpeech();
-      if (!recognition) { alert(tr('Dieser Browser unterstützt keine direkte Spracherkennung.')); return; }
-      recognition.lang = lang.value === 'en' ? 'en-US' : 'de-DE';
-      recognition.continuous = key === '__general';
-      keepOn = key === '__general';        // nur die Sprachnotiz stoppt nicht von selbst
-      target = key; base = getVal(key);    // vorhandenen Text erweitern statt ersetzen
-      activeSpeechField.value = key;
-      try { recognition.start(); } catch (e) { console.warn(e); keepOn = false; target = null; activeSpeechField.value = null; }
-    };
+const activeSpeechField = ref(null);
+let rec = null, target = null, wantOn = false, committed = '';
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const getVal = (k) => k === '__general' ? generalNote.value : (formData.value[k] || '');
+const setVal = (k, v) => { if (k === '__general') generalNote.value = v; else formData.value[k] = v; };
+const join = (a, b) => [a, b].filter(Boolean).join(' ');
+
+const startSession = () => {
+  rec = new SR();
+  rec.lang = lang.value === 'en' ? 'en-US' : 'de-DE';
+  rec.continuous = false;
+  rec.interimResults = true;
+  rec.onresult = (e) => {
+    let fin = '', interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript.trim();
+      if (e.results[i].isFinal) fin = join(fin, t); else interim = join(interim, t);
+    }
+    if (fin) committed = join(committed, fin);
+    if (target) setVal(target, join(committed, interim));
+  };
+  rec.onerror = (e) => {
+    if (!['no-speech', 'aborted'].includes(e.error)) { console.error('Sprachfehler:', e.error); wantOn = false; }
+  };
+  rec.onend = () => {
+    if (wantOn) { try { startSession(); return; } catch (_) {} }
+    wantOn = false; target = null; activeSpeechField.value = null;
+  };
+  rec.start();
+};
+
+const toggleSpeech = (key) => {
+  if (!window.isSecureContext) { alert(tr('Spracherkennung erfordert eine sichere Verbindung (HTTPS)!')); return; }
+  if (!SR) { alert(tr('Dieser Browser unterstützt keine direkte Spracherkennung.')); return; }
+  if (activeSpeechField.value) { wantOn = false; rec?.stop(); return; }
+  const f = currentTemplate.value?.fields.find(x => x.key === key);
+  wantOn = key === '__general' || f?.type === 'textarea';  // nur diese laufen bis Stopp
+  target = key; committed = getVal(key).trim();
+  activeSpeechField.value = key;
+  try { startSession(); } catch (e) { console.warn(e); wantOn = false; target = null; activeSpeechField.value = null; }
+};
 
     // An n8n senden
     const sendPayload = async () => {
