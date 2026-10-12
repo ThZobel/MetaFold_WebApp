@@ -90,6 +90,7 @@
           </button>
         </div>
         <textarea v-model="generalNote" rows="3" class="inp bg-white" :placeholder="tr('Frei sprechen oder tippen: Besonderheiten, Probleme, Beobachtungen …')"></textarea>
+        <p class="text-[11px] text-slate-400 mt-1">💡 {{ tr('Hinweis: Bitte einheitlich auf Deutsch oder Englisch sprechen (gemäß gewählter App-Sprache).') }}</p>
       </div>
 
       <div class="card space-y-4">
@@ -277,7 +278,8 @@ const EN = {
  'Was möchtest du erfassen?':'What do you want to record?','Kategorie wählen':'Choose category','Vorlage wählen':'Choose template',
  'Auf diesem Gerät sind noch keine Vorlagen gespeichert.':'No templates saved on this device yet.',
  'Aus Bibliothek wählen':'Choose from library','Datei laden':'Load file','Felder':'fields','Feldern ausgefüllt':'fields filled','von':'of',
- 'Allgemeine Sprachnotiz':'General voice note','Aufnehmen':'Record','Stopp':'Stop',
+ 'Allgemeine Sprachnotiz':'General voice note',
+ 'Hinweis: Bitte einheitlich auf Deutsch oder Englisch sprechen (gemäß gewählter App-Sprache).':'Note: Please speak consistently in German or English (matching the app language).','Aufnehmen':'Record','Stopp':'Stop',
  'Frei sprechen oder tippen: Besonderheiten, Probleme, Beobachtungen …':'Speak or type: notes, issues, observations …',
  'Auswählen':'Select','Ja':'Yes','Diktieren':'Dictate','Hört zu …':'Listening …',
  'Erfolgreich übertragen!':'Sent successfully!','Neue Erfassung':'New entry','Prüfen & senden':'Review & send','Sprachnotiz':'Voice note',
