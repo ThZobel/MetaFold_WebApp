@@ -191,6 +191,13 @@
             <summary class="cursor-pointer text-blue-600 font-medium hover:underline text-[11px]">Empfangene Metadaten anzeigen</summary>
             <pre class="mt-2 p-2 bg-white rounded-lg border border-slate-200 text-[10px] text-slate-600 overflow-x-auto">{{ JSON.stringify(serverEchoData.received_metadata, null, 2) }}</pre>
           </details>
+          <!-- Direkter Button zu eLabFTW -->
+          <div v-if="serverEchoData.elabftw_url" class="pt-2">
+            <a :href="serverEchoData.elabftw_url" target="_blank" rel="noopener" class="btn w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center justify-center gap-2 py-3 rounded-xl shadow-sm text-sm">
+              <span>🧪</span>
+              <span>In eLabFTW öffnen (Experiment #{{ serverEchoData.elabftw_id }}) ↗</span>
+            </a>
+          </div>
         </div>
 
         <button @click="resetWizard" type="button" class="btn bg-blue-600 text-white">{{ tr('review.newEntry') }}</button>
