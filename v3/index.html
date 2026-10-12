@@ -195,22 +195,79 @@
 
         <button @click="resetWizard" type="button" class="btn bg-blue-600 text-white">{{ tr('review.newEntry') }}</button>
       </div>
+      <!-- Schritt 4 - Zustand B: KI-Entwurf zur Freigabe -->
+      <div v-else-if="aiDraft" class="card space-y-4 p-5 border-2 border-indigo-200 bg-indigo-50/20">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-xl">✨</span>
+            <h3 class="font-bold text-sm text-indigo-950">{{ tr('review.aiDraftTitle') }}</h3>
+          </div>
+          <span class="text-[10px] bg-indigo-100 text-indigo-800 font-bold px-2 py-0.5 rounded-full">Freigabe</span>
+        </div>
+
+        <p class="text-xs text-slate-600">{{ tr('review.aiDraftDesc') }}</p>
+
+        <!-- Editierbarer KI-Titel falls vorhanden -->
+        <div v-if="aiDraft.title !== undefined" class="space-y-1">
+          <label class="block text-[11px] font-semibold text-slate-700">Titel</label>
+          <input v-model="aiDraft.title" type="text" class="inp text-sm bg-white">
+        </div>
+
+        <!-- Editierbarer KI-Text / Laborbericht -->
+        <div class="space-y-1">
+          <label class="block text-[11px] font-semibold text-slate-700">Laborbericht / Notiz</label>
+          <textarea v-model="aiDraft.text" rows="5" class="inp text-sm bg-white"></textarea>
+        </div>
+
+        <!-- Aktionen: Freigeben oder Verwerfen -->
+        <div class="flex gap-2 pt-1">
+          <button @click="approveAiDraft" :disabled="isSubmitting" type="button" class="btn flex-[2] bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-sm flex items-center justify-center gap-1.5">
+            <span v-if="isSubmitting" class="inline-block animate-spin">⏳</span>
+            <span v-else>✅</span>
+            <span>{{ isSubmitting ? tr('common.sending') : tr('review.aiApprove') }}</span>
+          </button>
+          <button @click="discardAiDraft" :disabled="isSubmitting" type="button" class="btn flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700">
+            {{ tr('review.aiDiscard') }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Schritt 4 - Zustand C: Zusammenfassung vor dem Senden -->
       <template v-else>
         <div>
           <h2 class="text-lg font-bold">{{ tr('review.title') }}</h2>
           <p class="text-xs text-slate-500">{{ selectedCategory }} · {{ currentTemplate.name }} · {{ summaryRows.length }} {{ tr('common.of') }} {{ fieldTotal(currentTemplate) }} {{ tr('common.fieldsFilled') }}</p>
         </div>
+
+        <!-- Interaktive Zusammenfassung mit Klick-Korrektur -->
         <div class="card divide-y divide-slate-100">
-          <div v-for="r in summaryRows" :key="r.key" class="py-2 first:pt-0 last:pb-0">
-            <div class="text-[11px] text-slate-400">{{ r.label }}</div>
-            <div class="text-sm break-words">{{ r.value }}</div>
+          <div v-for="r in summaryRows" :key="r.key" class="py-2.5 first:pt-0 last:pb-0">
+            <div class="flex justify-between items-center">
+              <span class="text-[11px] text-slate-400 font-medium">{{ r.label }}</span>
+              <button @click="editingField = editingField === r.key ? null : r.key" type="button" class="text-slate-400 hover:text-blue-600 text-xs p-0.5">
+                {{ editingField === r.key ? '✓ ' + tr('common.done') : '✏️' }}
+              </button>
+            </div>
+            <div v-if="editingField === r.key" class="mt-1">
+              <input v-model="formData[r.key]" type="text" class="inp text-sm py-1.5 px-2 bg-blue-50/40 border-blue-300">
+            </div>
+            <div v-else @click="editingField = r.key" class="text-sm break-words cursor-pointer hover:text-blue-600 transition" :title="tr('review.editPrompt')">
+              {{ r.value }}
+            </div>
           </div>
-          <div v-if="generalNote" class="py-2">
-            <div class="text-[11px] text-slate-400">🎙️ {{ tr('voice.note') }}</div>
-            <div class="text-sm break-words">{{ generalNote }}</div>
+
+          <!-- Direkt editierbare Sprachnotiz -->
+          <div v-if="generalNote !== undefined" class="py-2.5 space-y-1">
+            <div class="flex justify-between items-center">
+              <span class="text-[11px] text-slate-400 font-medium">🎙️ {{ tr('voice.note') }}</span>
+              <span class="text-[10px] text-slate-400">Tippen zum Bearbeiten</span>
+            </div>
+            <textarea v-model="generalNote" rows="2" class="inp text-sm bg-slate-50 border-slate-200" placeholder="Optionale Notiz..."></textarea>
           </div>
+
           <p v-if="!summaryRows.length && !generalNote" class="text-sm text-slate-400">{{ tr('review.nothingRecorded') }}</p>
         </div>
+
         <div v-if="activeIntegrations.length" class="card space-y-2">
           <h3 class="text-sm font-bold">🔌 {{ tr('settings.integrations') }}</h3>
           <label v-for="ig in activeIntegrations" :key="ig.id" class="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
@@ -219,13 +276,29 @@
             <input type="checkbox" :checked="integrationOn(ig.id)" @change="integrationChoice[ig.id] = $event.target.checked" class="w-6 h-6">
           </label>
         </div>
+
         <div v-if="missingRequired.length" class="bg-amber-50 border border-amber-200 text-amber-900 text-xs rounded-xl p-3 space-y-2">
           <div>{{ tr('review.missingRequired') }} <b>{{ missingRequired.map(f => f.label).join(', ') }}</b></div>
           <button @click="step=3" type="button" class="font-semibold underline">{{ tr('review.backToForm') }}</button>
         </div>
-        <button @click="sendPayload" :disabled="isSubmitting || missingRequired.length>0" type="button" class="btn bg-blue-600 disabled:bg-slate-300 text-white py-4 text-base shadow-md">
-          {{ isSubmitting ? tr('common.sending') : '🚀 ' + tr('review.submit') }}
-        </button>
+
+        <!-- Die beiden Sende-Buttons -->
+        <div class="space-y-2.5 pt-1">
+          <!-- Button 1: Send to AI Assistant -->
+          <button @click="sendPayload('ai_assistant')" :disabled="isSubmitting || missingRequired.length>0" type="button" class="btn w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white py-3.5 text-sm font-semibold shadow-sm flex items-center justify-center gap-2 active:scale-[0.99] transition">
+            <span v-if="isSubmitting && submitMode==='ai_assistant'" class="inline-block animate-spin">⏳</span>
+            <span v-else>✨</span>
+            <span>{{ isSubmitting && submitMode==='ai_assistant' ? tr('common.sending') : tr('review.sendAi') }}</span>
+          </button>
+
+          <!-- Button 2: Send direct -->
+          <button @click="sendPayload('direct')" :disabled="isSubmitting || missingRequired.length>0" type="button" class="btn w-full bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white py-3 text-sm font-medium shadow-sm flex items-center justify-center gap-2 active:scale-[0.99] transition">
+            <span v-if="isSubmitting && submitMode==='direct'" class="inline-block animate-spin">⏳</span>
+            <span v-else>🚀</span>
+            <span>{{ isSubmitting && submitMode==='direct' ? tr('common.sending') : tr('review.sendDirect') }}</span>
+          </button>
+        </div>
+
         <div v-if="sendError" class="bg-rose-50 text-rose-800 border border-rose-200 p-3 rounded-xl text-xs font-medium text-center">{{ sendError }}</div>
       </template>
     </section>
@@ -401,6 +474,13 @@ const MESSAGES = {
       missingRequired: 'Pflichtfelder fehlen:',
       backToForm: 'Zurück zum Formular',
       submit: 'Metadaten übertragen',
+      sendDirect: 'Direkt senden',
+      sendAi: 'Send to AI Assistant',
+      aiDraftTitle: 'Entwurf des KI-Assistenten',
+      aiDraftDesc: 'Bitte prüfe den Vorschlag vor dem Speichern:',
+      aiApprove: 'Freigeben & Speichern',
+      aiDiscard: 'Verwerfen',
+      editPrompt: 'Tippen zum Bearbeiten',
       success: 'Erfolgreich übertragen!',
       newEntry: 'Neue Erfassung'
     },
@@ -506,6 +586,13 @@ const MESSAGES = {
       missingRequired: 'Required fields missing:',
       backToForm: 'Back to form',
       submit: 'Send metadata',
+      sendDirect: 'Send direct',
+      sendAi: 'Send to AI Assistant',
+      aiDraftTitle: 'AI Assistant Draft',
+      aiDraftDesc: 'Please review the suggestion before saving:',
+      aiApprove: 'Approve & Save',
+      aiDiscard: 'Discard',
+      editPrompt: 'Tap to edit',
       success: 'Sent successfully!',
       newEntry: 'New entry'
     },
@@ -704,6 +791,9 @@ createApp({
     const serverEchoData = ref(null);
     const isSubmitting = ref(false);
     const sendError = ref('');
+    const editingField = ref(null);
+    const submitMode = ref('');
+    const aiDraft = ref(null);
 
     // Einstellungen / Bibliothek
     const showSettings = ref(false);
@@ -764,6 +854,7 @@ createApp({
     const resetWizard = () => {
       sent.value = false; serverEchoData.value = null; step.value = 1; selectedCategory.value = ''; selectedTemplateId.value = '';
       formData.value = {}; generalNote.value = ''; sendError.value = ''; integrationChoice.value = {};
+      editingField.value = null; submitMode.value = ''; aiDraft.value = null;
     };
 
     // Templates verwalten
@@ -1086,16 +1177,18 @@ createApp({
       }
     };
 
-    // An n8n senden
-    const sendPayload = async () => {
+    // An n8n senden (mode: 'direct' oder 'ai_assistant')
+    const sendPayload = async (mode = 'direct') => {
       if (!config.value.n8nWebhookUrl) {
         alert(tr('Bitte trage in den Einstellungen (⚙️) eine n8n Webhook URL ein.'));
         openSettings();
         return;
       }
       isSubmitting.value = true; sendError.value = ''; serverEchoData.value = null;
+      submitMode.value = mode;
       try {
         const payload = {
+          action: mode,
           timestamp: new Date().toISOString(),
           template: { id: currentTemplate.value.id, name: currentTemplate.value.name, category: currentTemplate.value.category },
           metadata: formData.value,
@@ -1108,10 +1201,50 @@ createApp({
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const echo = await res.json().catch(() => null);
         serverEchoData.value = echo;
+
+        // Falls KI-Modus und ein Entwurf zur Freigabe zurückgegeben wird:
+        if (mode === 'ai_assistant' && echo && (echo.ai_draft || echo.draft || echo.status === 'ai_draft')) {
+          const d = echo.ai_draft || echo.draft || {};
+          aiDraft.value = typeof d === 'string' ? { text: d } : {
+            title: d.title || (echo.title ?? ''),
+            text: d.text || d.notes || d.body || echo.message || ''
+          };
+        } else {
+          sent.value = true;
+        }
+      } catch (err) {
+        sendError.value = tr('Fehler beim Senden') + ': ' + err.message;
+      } finally { isSubmitting.value = false; }
+    };
+
+    const approveAiDraft = async () => {
+      if (!config.value.n8nWebhookUrl) return;
+      isSubmitting.value = true; sendError.value = '';
+      try {
+        const payload = {
+          action: 'approve_and_create',
+          timestamp: new Date().toISOString(),
+          template: { id: currentTemplate.value.id, name: currentTemplate.value.name, category: currentTemplate.value.category },
+          metadata: formData.value,
+          general_note: generalNote.value,
+          ai_draft: aiDraft.value,
+          integrations: Object.fromEntries(activeIntegrations.value.map(i => [i.id, integrationOn(i.id)]))
+        };
+        const res = await fetch(config.value.n8nWebhookUrl, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const echo = await res.json().catch(() => null);
+        serverEchoData.value = echo;
+        aiDraft.value = null;
         sent.value = true;
       } catch (err) {
         sendError.value = tr('Fehler beim Senden') + ': ' + err.message;
       } finally { isSubmitting.value = false; }
+    };
+
+    const discardAiDraft = () => {
+      aiDraft.value = null;
     };
 
     return {
@@ -1123,6 +1256,7 @@ createApp({
       activeSpeechField, toggleSpeech: toggleBrowserSpeech, handleSpeechAction,
       speechMode, setSpeechMode, isRecordingAudio, isTranscribing, recordingTarget,
       recordingSeconds, formatTimer, isRecordingNow, sendPayload,
+      editingField, submitMode, aiDraft, approveAiDraft, discardAiDraft,
       lang, t, tr, INTEGRATIONS, enabledIntegrations, activeIntegrations, integrationChoice, integrationOn,
       tagDraft, onTagInput, commitTag, removeTag, setRating, toggleMulti, scanable, scanning, scanVideo, openScan, stopScan
     };
