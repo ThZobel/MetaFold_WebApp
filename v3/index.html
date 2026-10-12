@@ -21,7 +21,7 @@
   <header class="sticky top-0 z-20 bg-white border-b border-slate-200 px-4 pt-3 pb-2">
     <div class="flex items-center justify-between">
       <h1 class="text-base font-bold text-slate-900">MetaFold Terminal</h1>
-      <button @click="openSettings" type="button" :aria-label="t('common.settings')" class="w-9 h-9 rounded-full bg-slate-100 border border-slate-200 text-base">⚙️</button>
+      <button @click="openSettings" type="button" :aria-label="tr('common.settings')" class="w-9 h-9 rounded-full bg-slate-100 border border-slate-200 text-base">⚙️</button>
     </div>
     <div class="flex gap-2 mt-2.5">
       <button v-for="(s,i) in stepLabels" :key="s" type="button" @click="goStep(i+1)" :disabled="!canGo(i+1)" class="flex-1 text-left disabled:opacity-40">
@@ -38,13 +38,13 @@
 
     <!-- Schritt 1: Kategorie -->
     <section v-if="step===1" class="space-y-3">
-      <h2 class="text-lg font-bold">{{ t('category.title') }}</h2>
-      <p class="text-sm text-slate-500 -mt-2">{{ t('category.choose') }}</p>
+      <h2 class="text-lg font-bold">{{ tr('category.title') }}</h2>
+      <p class="text-sm text-slate-500 -mt-2">{{ tr('category.choose') }}</p>
 
       <div v-if="!categories.length" class="card text-center space-y-3 p-5">
-        <p class="text-sm text-slate-600">{{ t('category.noTemplates') }}</p>
-        <button @click="openSettings" type="button" class="btn bg-blue-600 text-white">📚 {{ t('category.fromLibrary') }}</button>
-        <label class="btn bg-slate-100 text-slate-700 border border-slate-300">📂 {{ t('category.loadFile') }}
+        <p class="text-sm text-slate-600">{{ tr('category.noTemplates') }}</p>
+        <button @click="openSettings" type="button" class="btn bg-blue-600 text-white">📚 {{ tr('category.fromLibrary') }}</button>
+        <label class="btn bg-slate-100 text-slate-700 border border-slate-300">📂 {{ tr('category.loadFile') }}
           <input type="file" accept=".json,application/json" multiple class="hidden" @change="onFiles">
         </label>
       </div>
@@ -52,7 +52,7 @@
       <button v-for="c in categories" :key="c.name" @click="pickCategory(c.name)" type="button" class="big">
         <div>
           <div class="text-base font-semibold">🏷️ {{ c.name }}</div>
-          <div class="text-xs text-slate-500">{{ c.count }} {{ c.count===1 ? t('common.template') : t('common.templates') }}</div>
+          <div class="text-xs text-slate-500">{{ c.count }} {{ c.count===1 ? tr('common.template') : tr('common.templates') }}</div>
         </div>
         <span class="text-2xl text-slate-300">›</span>
       </button>
@@ -61,12 +61,12 @@
     <!-- Schritt 2: Vorlage -->
     <section v-if="step===2" class="space-y-3">
       <h2 class="text-lg font-bold">{{ selectedCategory }}</h2>
-      <p class="text-sm text-slate-500 -mt-2">{{ t('template.choose') }}</p>
-      <button v-for="t in filteredTemplates" :key="t.id" @click="pickTemplate(t.id)" type="button" class="big">
+      <p class="text-sm text-slate-500 -mt-2">{{ tr('template.choose') }}</p>
+      <button v-for="tpl in filteredTemplates" :key="tpl.id" @click="pickTemplate(tpl.id)" type="button" class="big">
         <div class="min-w-0">
-          <div class="text-base font-semibold">{{ t.name }}</div>
-          <div v-if="t.description" class="text-xs text-slate-500 mt-0.5">{{ t.description }}</div>
-          <div class="text-[11px] text-slate-400 mt-1">{{ fieldTotal(t) }} {{ t('common.fields') }}</div>
+          <div class="text-base font-semibold">{{ tpl.name }}</div>
+          <div v-if="tpl.description" class="text-xs text-slate-500 mt-0.5">{{ tpl.description }}</div>
+          <div class="text-[11px] text-slate-400 mt-1">{{ fieldTotal(tpl) }} {{ tr('common.fields') }}</div>
         </div>
         <span class="text-2xl text-slate-300">›</span>
       </button>
@@ -83,7 +83,7 @@
       <div class="bg-blue-50 border border-blue-200 rounded-2xl p-4 space-y-3">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div class="flex items-center gap-2">
-            <span class="text-sm font-bold text-blue-900">🎙️ {{ t('voice.title') }}</span>
+            <span class="text-sm font-bold text-blue-900">🎙️ {{ tr('voice.title') }}</span>
             <!-- Modus-Wahlschalter: Whisper vs Browser -->
             <div class="inline-flex rounded-lg bg-blue-200/60 p-0.5 text-[11px] font-semibold">
               <button type="button" @click="setSpeechMode('whisper')"
@@ -107,15 +107,15 @@
               <span class="inline-block animate-spin">⏳</span> {{ tr('Transkribiere...') }}
             </template>
             <template v-else-if="isRecordingNow('__general')">
-              <span>■</span> {{ t('voice.stop') }} ({{ formatTimer(recordingSeconds) }})
+              <span>■</span> {{ tr('voice.stop') }} ({{ formatTimer(recordingSeconds) }})
             </template>
             <template v-else>
-              <span>●</span> {{ t('voice.record') }}
+              <span>●</span> {{ tr('voice.record') }}
             </template>
           </button>
         </div>
 
-        <textarea v-model="generalNote" rows="3" class="inp bg-white" :placeholder="speechMode==='whisper' ? t('voice.placeholderWhisper') : t('voice.placeholderBrowser')"></textarea>
+        <textarea v-model="generalNote" rows="3" class="inp bg-white" :placeholder="speechMode==='whisper' ? tr('voice.placeholderWhisper') : tr('voice.placeholderBrowser')"></textarea>
       </div>
 
       <div class="card space-y-4">
@@ -127,28 +127,28 @@
             <div class="flex justify-between items-center gap-2">
               <label class="block text-xs font-medium text-slate-700">{{ field.label }} <span v-if="field.required" class="text-red-500 font-bold">*</span></label>
               <div class="flex gap-1.5 shrink-0">
-                <button v-if="scanable(field)" @click="openScan(field.key)" type="button" class="text-[11px] px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-100 text-slate-600 font-medium active:scale-95 transition">📷 {{ t('scanner.scan') }}</button>
+                <button v-if="scanable(field)" @click="openScan(field.key)" type="button" class="text-[11px] px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-100 text-slate-600 font-medium active:scale-95 transition">📷 {{ tr('scanner.scan') }}</button>
                 <button v-if="field.type==='text' || field.type==='textarea'" @click="handleSpeechAction(field.key)" type="button"
                 :disabled="isTranscribing && recordingTarget===field.key"
                 :class="isRecordingNow(field.key) ? 'bg-red-500 text-white animate-pulse' : isTranscribing && recordingTarget===field.key ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-600'"
                 class="text-[11px] px-2.5 py-1 rounded-lg border border-slate-200 font-medium active:scale-95 transition">
-                🎙️ {{ isTranscribing && recordingTarget===field.key ? tr('Transkribiere...') : isRecordingNow(field.key) ? t('voice.stop') + ' (' + formatTimer(recordingSeconds) + ')' : t('voice.dictate') }}
+                🎙️ {{ isTranscribing && recordingTarget===field.key ? tr('Transkribiere...') : isRecordingNow(field.key) ? tr('voice.stop') + ' (' + formatTimer(recordingSeconds) + ')' : tr('voice.dictate') }}
               </button>
               </div>
             </div>
             <select v-if="field.type==='select'" v-model="formData[field.key]" class="inp">
-              <option value="">{{ t('common.selectPrompt') }}</option>
+              <option value="">{{ tr('common.selectPrompt') }}</option>
               <option v-for="o in field.options" :key="o" :value="o">{{ o }}</option>
             </select>
             <textarea v-else-if="field.type==='textarea'" v-model="formData[field.key]" rows="3" class="inp"></textarea>
             <label v-else-if="field.type==='checkbox'" class="flex items-center gap-3 p-3 bg-slate-50 border border-slate-300 rounded-xl text-sm">
-              <input type="checkbox" v-model="formData[field.key]" class="w-5 h-5"> {{ t('common.yes') }}
+              <input type="checkbox" v-model="formData[field.key]" class="w-5 h-5"> {{ tr('common.yes') }}
             </label>
             <div v-else-if="field.type==='tags'" class="bg-slate-50 border border-slate-300 rounded-xl p-2 flex flex-wrap gap-1.5 focus-within:ring-2 focus-within:ring-blue-500">
               <span v-for="(tg,i) in formData[field.key]" :key="tg+i" class="inline-flex items-center gap-1 bg-blue-100 text-blue-800 text-xs font-medium pl-3 pr-1.5 py-1.5 rounded-full">
                 {{ tg }}<button type="button" @click="removeTag(field.key,i)" class="w-5 h-5 rounded-full text-blue-700 leading-none active:bg-blue-200">✕</button>
               </span>
-              <input type="text" enterkeyhint="done" :placeholder="t('scanner.tagPrompt')" :value="tagDraft[field.key] || ''" @input="onTagInput(field.key,$event)" @keydown.enter.prevent="commitTag(field.key)" @blur="commitTag(field.key)" class="flex-1 min-w-[9rem] bg-transparent outline-none text-sm p-1.5">
+              <input type="text" enterkeyhint="done" :placeholder="tr('scanner.tagPrompt')" :value="tagDraft[field.key] || ''" @input="onTagInput(field.key,$event)" @keydown.enter.prevent="commitTag(field.key)" @blur="commitTag(field.key)" class="flex-1 min-w-[9rem] bg-transparent outline-none text-sm p-1.5">
             </div>
             <div v-else-if="field.type==='rating'" class="flex items-center gap-0.5">
               <button v-for="n in 5" :key="n" type="button" @click="setRating(field.key,n)" :class="n <= (formData[field.key]||0) ? 'text-amber-400' : 'text-slate-300'" class="text-4xl leading-none p-1 active:scale-90 transition">★</button>
@@ -168,13 +168,13 @@
     <section v-if="step===4 && currentTemplate" class="space-y-3">
       <div v-if="sent" class="card text-center space-y-3 p-6">
         <div class="text-4xl">✅</div>
-        <p class="font-semibold">{{ t('review.success') }}</p>
-        <button @click="resetWizard" type="button" class="btn bg-blue-600 text-white">{{ t('review.newEntry') }}</button>
+        <p class="font-semibold">{{ tr('review.success') }}</p>
+        <button @click="resetWizard" type="button" class="btn bg-blue-600 text-white">{{ tr('review.newEntry') }}</button>
       </div>
       <template v-else>
         <div>
-          <h2 class="text-lg font-bold">{{ t('review.title') }}</h2>
-          <p class="text-xs text-slate-500">{{ selectedCategory }} · {{ currentTemplate.name }} · {{ summaryRows.length }} {{ t('common.of') }} {{ fieldTotal(currentTemplate) }} {{ t('common.fieldsFilled') }}</p>
+          <h2 class="text-lg font-bold">{{ tr('review.title') }}</h2>
+          <p class="text-xs text-slate-500">{{ selectedCategory }} · {{ currentTemplate.name }} · {{ summaryRows.length }} {{ tr('common.of') }} {{ fieldTotal(currentTemplate) }} {{ tr('common.fieldsFilled') }}</p>
         </div>
         <div class="card divide-y divide-slate-100">
           <div v-for="r in summaryRows" :key="r.key" class="py-2 first:pt-0 last:pb-0">
@@ -182,13 +182,13 @@
             <div class="text-sm break-words">{{ r.value }}</div>
           </div>
           <div v-if="generalNote" class="py-2">
-            <div class="text-[11px] text-slate-400">🎙️ {{ t('voice.note') }}</div>
+            <div class="text-[11px] text-slate-400">🎙️ {{ tr('voice.note') }}</div>
             <div class="text-sm break-words">{{ generalNote }}</div>
           </div>
-          <p v-if="!summaryRows.length && !generalNote" class="text-sm text-slate-400">{{ t('review.nothingRecorded') }}</p>
+          <p v-if="!summaryRows.length && !generalNote" class="text-sm text-slate-400">{{ tr('review.nothingRecorded') }}</p>
         </div>
         <div v-if="activeIntegrations.length" class="card space-y-2">
-          <h3 class="text-sm font-bold">🔌 {{ t('settings.integrations') }}</h3>
+          <h3 class="text-sm font-bold">🔌 {{ tr('settings.integrations') }}</h3>
           <label v-for="ig in activeIntegrations" :key="ig.id" class="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
             <span class="text-xl">{{ ig.icon }}</span>
             <span class="flex-1 text-sm font-semibold">{{ ig.name }}</span>
@@ -196,11 +196,11 @@
           </label>
         </div>
         <div v-if="missingRequired.length" class="bg-amber-50 border border-amber-200 text-amber-900 text-xs rounded-xl p-3 space-y-2">
-          <div>{{ t('review.missingRequired') }} <b>{{ missingRequired.map(f => f.label).join(', ') }}</b></div>
-          <button @click="step=3" type="button" class="font-semibold underline">{{ t('review.backToForm') }}</button>
+          <div>{{ tr('review.missingRequired') }} <b>{{ missingRequired.map(f => f.label).join(', ') }}</b></div>
+          <button @click="step=3" type="button" class="font-semibold underline">{{ tr('review.backToForm') }}</button>
         </div>
         <button @click="sendPayload" :disabled="isSubmitting || missingRequired.length>0" type="button" class="btn bg-blue-600 disabled:bg-slate-300 text-white py-4 text-base shadow-md">
-          {{ isSubmitting ? t('common.sending') : '🚀 ' + t('review.submit') }}
+          {{ isSubmitting ? tr('common.sending') : '🚀 ' + tr('review.submit') }}
         </button>
         <div v-if="sendError" class="bg-rose-50 text-rose-800 border border-rose-200 p-3 rounded-xl text-xs font-medium text-center">{{ sendError }}</div>
       </template>
@@ -210,8 +210,8 @@
   <!-- Navigation unten -->
   <nav v-if="step>1 && !sent" class="fixed bottom-0 inset-x-0 z-20 bg-white/95 backdrop-blur border-t border-slate-200 p-3" style="padding-bottom:max(0.75rem, env(safe-area-inset-bottom))">
     <div class="max-w-xl mx-auto flex gap-3">
-      <button @click="step--" type="button" class="btn flex-1 bg-slate-100 text-slate-700">‹ {{ t('common.back') }}</button>
-      <button v-if="step===3" @click="step=4" type="button" class="btn flex-[2] bg-blue-600 text-white">{{ t('common.next') }} ›</button>
+      <button @click="step--" type="button" class="btn flex-1 bg-slate-100 text-slate-700">‹ {{ tr('common.back') }}</button>
+      <button v-if="step===3" @click="step=4" type="button" class="btn flex-[2] bg-blue-600 text-white">{{ tr('common.next') }} ›</button>
     </div>
   </nav>
 
@@ -220,8 +220,8 @@
     <video ref="scanVideo" playsinline muted class="flex-1 min-h-0 w-full object-cover"></video>
     <div class="absolute inset-0 pointer-events-none flex items-center justify-center pb-24"><div class="w-64 h-64 border-4 border-white/80 rounded-3xl"></div></div>
     <div class="p-4 text-center space-y-3" style="padding-bottom:max(1rem, env(safe-area-inset-bottom))">
-      <p class="text-white text-sm">{{ t('scanner.prompt') }}</p>
-      <button @click="stopScan" type="button" class="btn bg-white text-slate-900">{{ t('common.cancel') }}</button>
+      <p class="text-white text-sm">{{ tr('scanner.prompt') }}</p>
+      <button @click="stopScan" type="button" class="btn bg-white text-slate-900">{{ tr('common.cancel') }}</button>
     </div>
   </div>
 
@@ -229,62 +229,62 @@
   <div v-if="showSettings" class="fixed inset-0 z-40 bg-slate-100 overflow-y-auto">
     <div class="max-w-xl mx-auto p-4 space-y-4 pb-12">
       <div class="flex items-center justify-between">
-        <h2 class="text-lg font-bold">{{ t('settings.title') }}</h2>
-        <button @click="closeSettings" type="button" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-semibold">{{ t('common.done') }}</button>
+        <h2 class="text-lg font-bold">{{ tr('settings.title') }}</h2>
+        <button @click="closeSettings" type="button" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-semibold">{{ tr('common.done') }}</button>
       </div>
 
       <section class="card space-y-2">
-        <h3 class="font-bold text-sm">🌐 {{ t('settings.language') }}</h3>
+        <h3 class="font-bold text-sm">🌐 {{ tr('settings.language') }}</h3>
         <div class="flex gap-2">
           <button v-for="l in ['de','en']" :key="l" @click="lang=l" type="button" :class="lang===l ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'" class="btn flex-1">{{ l==='de' ? 'Deutsch' : 'English' }}</button>
         </div>
       </section>
 
       <section class="card space-y-2">
-        <h3 class="font-bold text-sm">🔌 {{ t('settings.integrations') }}</h3>
-        <p class="text-xs text-slate-500">{{ t('settings.integrationsDesc') }}</p>
+        <h3 class="font-bold text-sm">🔌 {{ tr('settings.integrations') }}</h3>
+        <p class="text-xs text-slate-500">{{ tr('settings.integrationsDesc') }}</p>
         <label v-for="i in INTEGRATIONS" :key="i.id" class="flex items-center gap-3 p-3 border border-slate-200 rounded-xl">
           <span class="text-xl">{{ i.icon }}</span>
-          <div class="flex-1"><div class="text-sm font-semibold">{{ i.name }}</div><div class="text-[11px] text-slate-500">{{ t(i.descKey || i.desc) }}</div></div>
+          <div class="flex-1"><div class="text-sm font-semibold">{{ i.name }}</div><div class="text-[11px] text-slate-500">{{ tr(i.descKey || i.desc || '') }}</div></div>
           <input type="checkbox" :value="i.id" v-model="enabledIntegrations" class="w-5 h-5">
         </label>
       </section>
 
       <section class="card space-y-3">
-        <h3 class="font-bold text-sm">📚 {{ t('settings.library') }}</h3>
+        <h3 class="font-bold text-sm">📚 {{ tr('settings.library') }}</h3>
         <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">{{ t('settings.repoLabel') }} <code>templates-index.json</code></label>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">{{ tr('settings.repoLabel') }} <code>templates-index.json</code></label>
           <input v-model="config.libraryUrl" type="url" class="inp" placeholder="https://github.com/ThZobel/MetaFold-Templates">
         </div>
-        <button @click="loadLibrary" type="button" class="btn bg-slate-900 text-white">{{ libLoading ? t('common.loading') : t('settings.loadLibrary') }}</button>
+        <button @click="loadLibrary" type="button" class="btn bg-slate-900 text-white">{{ libLoading ? tr('common.loading') : tr('settings.loadLibrary') }}</button>
         <p v-if="libError" class="text-xs text-rose-600">{{ libError }}</p>
         <div v-for="e in library" :key="e.path" class="flex items-center gap-3 p-3 border border-slate-200 rounded-xl">
           <div class="flex-1 min-w-0">
             <div class="text-sm font-semibold truncate">{{ e.name }}</div>
-            <div class="text-[11px] text-slate-500">{{ prettyCat(e.category) }} · {{ e.fieldsCount }} {{ t('common.fields') }}</div>
+            <div class="text-[11px] text-slate-500">{{ prettyCat(e.category) }} · {{ e.fieldsCount }} {{ tr('common.fields') }}</div>
           </div>
-          <span v-if="hasTemplate(e.path)" class="text-xs px-3 py-2 rounded-lg bg-emerald-100 text-emerald-700 font-semibold">✓ {{ t('common.saved') }}</span>
-          <button v-else @click="addFromLibrary(e)" type="button" class="text-xs px-3 py-2 rounded-lg bg-blue-600 text-white font-semibold">＋ {{ t('common.add') }}</button>
+          <span v-if="hasTemplate(e.path)" class="text-xs px-3 py-2 rounded-lg bg-emerald-100 text-emerald-700 font-semibold">✓ {{ tr('common.saved') }}</span>
+          <button v-else @click="addFromLibrary(e)" type="button" class="text-xs px-3 py-2 rounded-lg bg-blue-600 text-white font-semibold">＋ {{ tr('common.add') }}</button>
         </div>
       </section>
 
       <section class="card space-y-2">
-        <h3 class="font-bold text-sm">📂 {{ t('category.loadFile') }}</h3>
-        <p class="text-xs text-slate-500">{{ t('settings.loadJsonDesc') }}</p>
-        <label class="btn bg-slate-100 text-slate-700 border border-slate-300">{{ t('settings.chooseJson') }}
+        <h3 class="font-bold text-sm">📂 {{ tr('category.loadFile') }}</h3>
+        <p class="text-xs text-slate-500">{{ tr('settings.loadJsonDesc') }}</p>
+        <label class="btn bg-slate-100 text-slate-700 border border-slate-300">{{ tr('settings.chooseJson') }}
           <input type="file" accept=".json,application/json" multiple class="hidden" @change="onFiles">
         </label>
       </section>
 
       <section class="card">
-        <h3 class="font-bold text-sm mb-2">{{ t('settings.myTemplates') }} ({{ templates.length }})</h3>
-        <p v-if="!templates.length" class="text-xs text-slate-400">{{ t('settings.noneSaved') }}</p>
-        <div v-for="t in templates" :key="t.id" class="flex items-center justify-between gap-2 py-2 border-b border-slate-100 last:border-0">
+        <h3 class="font-bold text-sm mb-2">{{ tr('settings.myTemplates') }} ({{ templates.length }})</h3>
+        <p v-if="!templates.length" class="text-xs text-slate-400">{{ tr('settings.noneSaved') }}</p>
+        <div v-for="tpl in templates" :key="tpl.id" class="flex items-center justify-between gap-2 py-2 border-b border-slate-100 last:border-0">
           <div class="min-w-0">
-            <div class="text-sm truncate">{{ t.name }}</div>
-            <div class="text-[11px] text-slate-400">{{ t.category }}</div>
+            <div class="text-sm truncate">{{ tpl.name }}</div>
+            <div class="text-[11px] text-slate-400">{{ tpl.category }}</div>
           </div>
-          <button @click="removeTemplate(t.id)" type="button" class="text-rose-600 px-3 py-1" :aria-label="t('common.remove')">✕</button>
+          <button @click="removeTemplate(tpl.id)" type="button" class="text-rose-600 px-3 py-1" :aria-label="tr('common.remove')">✕</button>
         </div>
       </section>
 
@@ -637,8 +637,10 @@ createApp({
 
     // Sprache & Integrationen
     const lang = ref(localStorage.getItem('metafold_lang') || ((navigator.language || 'de').startsWith('de') ? 'de' : 'en'));
-        // i18n Übersetzungsfunktion mit Dot-Notation & Parameter-Unterstützung
-    const t = (path, params = {}) => {
+            // i18n Übersetzungsfunktion mit Dot-Notation & Parameter-Unterstützung (vollständig abgesichert)
+    const tr = (path, params = {}) => {
+      if (path == null) return '';
+      if (typeof path !== 'string') return String(path);
       const current = lang.value || 'de';
       // 1. Suche in strukturierten Messages
       let val = path.split('.').reduce((o, k) => o?.[k], MESSAGES[current]);
@@ -651,14 +653,14 @@ createApp({
         val = (current === 'en' && EN_FALLBACK[path]) ? EN_FALLBACK[path] : path;
       }
       // 4. Parameter ersetzen {name}
-      if (typeof val === 'string' && params && Object.keys(params).length) {
+      if (typeof val === 'string' && params && typeof params === 'object') {
         for (const [k, v] of Object.entries(params)) {
           val = val.replace(new RegExp(`{${k}}`, 'g'), v);
         }
       }
       return val ?? path;
     };
-    const tr = t; // Abwärtskompatibler Alias
+    const t = tr; // Alias
     watch(lang, v => { localStorage.setItem('metafold_lang', v); document.documentElement.lang = v; }, { immediate: true });
     const enabledIntegrations = ref(load('metafold_integrations', []));
     watch(enabledIntegrations, v => localStorage.setItem('metafold_integrations', JSON.stringify(v)), { deep: true });
