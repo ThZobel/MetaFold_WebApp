@@ -21,7 +21,7 @@
   <header class="sticky top-0 z-20 bg-white border-b border-slate-200 px-4 pt-3 pb-2">
     <div class="flex items-center justify-between">
       <h1 class="text-base font-bold text-slate-900">MetaFold Terminal</h1>
-      <button @click="openSettings" type="button" :aria-label="tr('Einstellungen')" class="w-9 h-9 rounded-full bg-slate-100 border border-slate-200 text-base">⚙️</button>
+      <button @click="openSettings" type="button" :aria-label="t('common.settings')" class="w-9 h-9 rounded-full bg-slate-100 border border-slate-200 text-base">⚙️</button>
     </div>
     <div class="flex gap-2 mt-2.5">
       <button v-for="(s,i) in stepLabels" :key="s" type="button" @click="goStep(i+1)" :disabled="!canGo(i+1)" class="flex-1 text-left disabled:opacity-40">
@@ -38,13 +38,13 @@
 
     <!-- Schritt 1: Kategorie -->
     <section v-if="step===1" class="space-y-3">
-      <h2 class="text-lg font-bold">{{ tr('Was möchtest du erfassen?') }}</h2>
-      <p class="text-sm text-slate-500 -mt-2">{{ tr('Kategorie wählen') }}</p>
+      <h2 class="text-lg font-bold">{{ t('category.title') }}</h2>
+      <p class="text-sm text-slate-500 -mt-2">{{ t('category.choose') }}</p>
 
       <div v-if="!categories.length" class="card text-center space-y-3 p-5">
-        <p class="text-sm text-slate-600">{{ tr('Auf diesem Gerät sind noch keine Vorlagen gespeichert.') }}</p>
-        <button @click="openSettings" type="button" class="btn bg-blue-600 text-white">📚 {{ tr('Aus Bibliothek wählen') }}</button>
-        <label class="btn bg-slate-100 text-slate-700 border border-slate-300">📂 {{ tr('Datei laden') }}
+        <p class="text-sm text-slate-600">{{ t('category.noTemplates') }}</p>
+        <button @click="openSettings" type="button" class="btn bg-blue-600 text-white">📚 {{ t('category.fromLibrary') }}</button>
+        <label class="btn bg-slate-100 text-slate-700 border border-slate-300">📂 {{ t('category.loadFile') }}
           <input type="file" accept=".json,application/json" multiple class="hidden" @change="onFiles">
         </label>
       </div>
@@ -52,7 +52,7 @@
       <button v-for="c in categories" :key="c.name" @click="pickCategory(c.name)" type="button" class="big">
         <div>
           <div class="text-base font-semibold">🏷️ {{ c.name }}</div>
-          <div class="text-xs text-slate-500">{{ c.count }} {{ c.count===1 ? tr('Vorlage') : tr('Vorlagen') }}</div>
+          <div class="text-xs text-slate-500">{{ c.count }} {{ c.count===1 ? t('common.template') : t('common.templates') }}</div>
         </div>
         <span class="text-2xl text-slate-300">›</span>
       </button>
@@ -61,12 +61,12 @@
     <!-- Schritt 2: Vorlage -->
     <section v-if="step===2" class="space-y-3">
       <h2 class="text-lg font-bold">{{ selectedCategory }}</h2>
-      <p class="text-sm text-slate-500 -mt-2">{{ tr('Vorlage wählen') }}</p>
+      <p class="text-sm text-slate-500 -mt-2">{{ t('template.choose') }}</p>
       <button v-for="t in filteredTemplates" :key="t.id" @click="pickTemplate(t.id)" type="button" class="big">
         <div class="min-w-0">
           <div class="text-base font-semibold">{{ t.name }}</div>
           <div v-if="t.description" class="text-xs text-slate-500 mt-0.5">{{ t.description }}</div>
-          <div class="text-[11px] text-slate-400 mt-1">{{ fieldTotal(t) }} {{ tr('Felder') }}</div>
+          <div class="text-[11px] text-slate-400 mt-1">{{ fieldTotal(t) }} {{ t('common.fields') }}</div>
         </div>
         <span class="text-2xl text-slate-300">›</span>
       </button>
@@ -83,7 +83,7 @@
       <div class="bg-blue-50 border border-blue-200 rounded-2xl p-4 space-y-3">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div class="flex items-center gap-2">
-            <span class="text-sm font-bold text-blue-900">🎙️ {{ tr('Allgemeine Sprachnotiz') }}</span>
+            <span class="text-sm font-bold text-blue-900">🎙️ {{ t('voice.title') }}</span>
             <!-- Modus-Wahlschalter: Whisper vs Browser -->
             <div class="inline-flex rounded-lg bg-blue-200/60 p-0.5 text-[11px] font-semibold">
               <button type="button" @click="setSpeechMode('whisper')"
@@ -107,24 +107,15 @@
               <span class="inline-block animate-spin">⏳</span> {{ tr('Transkribiere...') }}
             </template>
             <template v-else-if="isRecordingNow('__general')">
-              <span>■</span> {{ tr('Stopp') }} ({{ formatTimer(recordingSeconds) }})
+              <span>■</span> {{ t('voice.stop') }} ({{ formatTimer(recordingSeconds) }})
             </template>
             <template v-else>
-              <span>●</span> {{ tr('Aufnehmen') }}
+              <span>●</span> {{ t('voice.record') }}
             </template>
           </button>
         </div>
 
-        <textarea v-model="generalNote" rows="3" class="inp bg-white" :placeholder="tr('Frei sprechen oder tippen: Besonderheiten, Probleme, Beobachtungen …')"></textarea>
-
-        <div class="text-[11px] leading-tight">
-          <p v-if="speechMode==='whisper'" class="text-blue-800 font-medium">
-            ✨ <strong>Whisper aktiv:</strong> Fachbegriffe & gemischtes Deutsch/Englisch im selben Satz werden perfekt erkannt.
-          </p>
-          <p v-else class="text-slate-500">
-            💡 <strong>Browser-Diktat aktiv:</strong> Bitte einheitlich auf {{ lang==='de' ? 'Deutsch' : 'Englisch' }} sprechen.
-          </p>
-        </div>
+        <textarea v-model="generalNote" rows="3" class="inp bg-white" :placeholder="speechMode==='whisper' ? t('voice.placeholderWhisper') : t('voice.placeholderBrowser')"></textarea>
       </div>
 
       <div class="card space-y-4">
@@ -136,28 +127,28 @@
             <div class="flex justify-between items-center gap-2">
               <label class="block text-xs font-medium text-slate-700">{{ field.label }} <span v-if="field.required" class="text-red-500 font-bold">*</span></label>
               <div class="flex gap-1.5 shrink-0">
-                <button v-if="scanable(field)" @click="openScan(field.key)" type="button" class="text-[11px] px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-100 text-slate-600 font-medium active:scale-95 transition">📷 Scan</button>
+                <button v-if="scanable(field)" @click="openScan(field.key)" type="button" class="text-[11px] px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-100 text-slate-600 font-medium active:scale-95 transition">📷 {{ t('scanner.scan') }}</button>
                 <button v-if="field.type==='text' || field.type==='textarea'" @click="handleSpeechAction(field.key)" type="button"
                 :disabled="isTranscribing && recordingTarget===field.key"
                 :class="isRecordingNow(field.key) ? 'bg-red-500 text-white animate-pulse' : isTranscribing && recordingTarget===field.key ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-600'"
                 class="text-[11px] px-2.5 py-1 rounded-lg border border-slate-200 font-medium active:scale-95 transition">
-                🎙️ {{ isTranscribing && recordingTarget===field.key ? tr('Transkribiere...') : isRecordingNow(field.key) ? tr('Stopp') + ' (' + formatTimer(recordingSeconds) + ')' : tr('Diktieren') }}
+                🎙️ {{ isTranscribing && recordingTarget===field.key ? tr('Transkribiere...') : isRecordingNow(field.key) ? t('voice.stop') + ' (' + formatTimer(recordingSeconds) + ')' : t('voice.dictate') }}
               </button>
               </div>
             </div>
             <select v-if="field.type==='select'" v-model="formData[field.key]" class="inp">
-              <option value="">{{ tr('Auswählen') }} …</option>
+              <option value="">{{ t('common.selectPrompt') }}</option>
               <option v-for="o in field.options" :key="o" :value="o">{{ o }}</option>
             </select>
             <textarea v-else-if="field.type==='textarea'" v-model="formData[field.key]" rows="3" class="inp"></textarea>
             <label v-else-if="field.type==='checkbox'" class="flex items-center gap-3 p-3 bg-slate-50 border border-slate-300 rounded-xl text-sm">
-              <input type="checkbox" v-model="formData[field.key]" class="w-5 h-5"> {{ tr('Ja') }}
+              <input type="checkbox" v-model="formData[field.key]" class="w-5 h-5"> {{ t('common.yes') }}
             </label>
             <div v-else-if="field.type==='tags'" class="bg-slate-50 border border-slate-300 rounded-xl p-2 flex flex-wrap gap-1.5 focus-within:ring-2 focus-within:ring-blue-500">
               <span v-for="(tg,i) in formData[field.key]" :key="tg+i" class="inline-flex items-center gap-1 bg-blue-100 text-blue-800 text-xs font-medium pl-3 pr-1.5 py-1.5 rounded-full">
                 {{ tg }}<button type="button" @click="removeTag(field.key,i)" class="w-5 h-5 rounded-full text-blue-700 leading-none active:bg-blue-200">✕</button>
               </span>
-              <input type="text" enterkeyhint="done" :placeholder="tr('Tag eingeben, Enter oder Komma')" :value="tagDraft[field.key] || ''" @input="onTagInput(field.key,$event)" @keydown.enter.prevent="commitTag(field.key)" @blur="commitTag(field.key)" class="flex-1 min-w-[9rem] bg-transparent outline-none text-sm p-1.5">
+              <input type="text" enterkeyhint="done" :placeholder="t('scanner.tagPrompt')" :value="tagDraft[field.key] || ''" @input="onTagInput(field.key,$event)" @keydown.enter.prevent="commitTag(field.key)" @blur="commitTag(field.key)" class="flex-1 min-w-[9rem] bg-transparent outline-none text-sm p-1.5">
             </div>
             <div v-else-if="field.type==='rating'" class="flex items-center gap-0.5">
               <button v-for="n in 5" :key="n" type="button" @click="setRating(field.key,n)" :class="n <= (formData[field.key]||0) ? 'text-amber-400' : 'text-slate-300'" class="text-4xl leading-none p-1 active:scale-90 transition">★</button>
@@ -177,13 +168,13 @@
     <section v-if="step===4 && currentTemplate" class="space-y-3">
       <div v-if="sent" class="card text-center space-y-3 p-6">
         <div class="text-4xl">✅</div>
-        <p class="font-semibold">{{ tr('Erfolgreich übertragen!') }}</p>
-        <button @click="resetWizard" type="button" class="btn bg-blue-600 text-white">{{ tr('Neue Erfassung') }}</button>
+        <p class="font-semibold">{{ t('review.success') }}</p>
+        <button @click="resetWizard" type="button" class="btn bg-blue-600 text-white">{{ t('review.newEntry') }}</button>
       </div>
       <template v-else>
         <div>
-          <h2 class="text-lg font-bold">{{ tr('Prüfen & senden') }}</h2>
-          <p class="text-xs text-slate-500">{{ selectedCategory }} · {{ currentTemplate.name }} · {{ summaryRows.length }} {{ tr('von') }} {{ fieldTotal(currentTemplate) }} {{ tr('Feldern ausgefüllt') }}</p>
+          <h2 class="text-lg font-bold">{{ t('review.title') }}</h2>
+          <p class="text-xs text-slate-500">{{ selectedCategory }} · {{ currentTemplate.name }} · {{ summaryRows.length }} {{ t('common.of') }} {{ fieldTotal(currentTemplate) }} {{ t('common.fieldsFilled') }}</p>
         </div>
         <div class="card divide-y divide-slate-100">
           <div v-for="r in summaryRows" :key="r.key" class="py-2 first:pt-0 last:pb-0">
@@ -191,13 +182,13 @@
             <div class="text-sm break-words">{{ r.value }}</div>
           </div>
           <div v-if="generalNote" class="py-2">
-            <div class="text-[11px] text-slate-400">🎙️ {{ tr('Sprachnotiz') }}</div>
+            <div class="text-[11px] text-slate-400">🎙️ {{ t('voice.note') }}</div>
             <div class="text-sm break-words">{{ generalNote }}</div>
           </div>
-          <p v-if="!summaryRows.length && !generalNote" class="text-sm text-slate-400">{{ tr('Noch nichts erfasst.') }}</p>
+          <p v-if="!summaryRows.length && !generalNote" class="text-sm text-slate-400">{{ t('review.nothingRecorded') }}</p>
         </div>
         <div v-if="activeIntegrations.length" class="card space-y-2">
-          <h3 class="text-sm font-bold">🔌 {{ tr('Integrationen') }}</h3>
+          <h3 class="text-sm font-bold">🔌 {{ t('settings.integrations') }}</h3>
           <label v-for="ig in activeIntegrations" :key="ig.id" class="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
             <span class="text-xl">{{ ig.icon }}</span>
             <span class="flex-1 text-sm font-semibold">{{ ig.name }}</span>
@@ -205,11 +196,11 @@
           </label>
         </div>
         <div v-if="missingRequired.length" class="bg-amber-50 border border-amber-200 text-amber-900 text-xs rounded-xl p-3 space-y-2">
-          <div>{{ tr('Pflichtfelder fehlen:') }} <b>{{ missingRequired.map(f => f.label).join(', ') }}</b></div>
-          <button @click="step=3" type="button" class="font-semibold underline">{{ tr('Zurück zum Formular') }}</button>
+          <div>{{ t('review.missingRequired') }} <b>{{ missingRequired.map(f => f.label).join(', ') }}</b></div>
+          <button @click="step=3" type="button" class="font-semibold underline">{{ t('review.backToForm') }}</button>
         </div>
         <button @click="sendPayload" :disabled="isSubmitting || missingRequired.length>0" type="button" class="btn bg-blue-600 disabled:bg-slate-300 text-white py-4 text-base shadow-md">
-          {{ isSubmitting ? tr('Wird übertragen …') : '🚀 ' + tr('Metadaten übertragen') }}
+          {{ isSubmitting ? t('common.sending') : '🚀 ' + t('review.submit') }}
         </button>
         <div v-if="sendError" class="bg-rose-50 text-rose-800 border border-rose-200 p-3 rounded-xl text-xs font-medium text-center">{{ sendError }}</div>
       </template>
@@ -219,8 +210,8 @@
   <!-- Navigation unten -->
   <nav v-if="step>1 && !sent" class="fixed bottom-0 inset-x-0 z-20 bg-white/95 backdrop-blur border-t border-slate-200 p-3" style="padding-bottom:max(0.75rem, env(safe-area-inset-bottom))">
     <div class="max-w-xl mx-auto flex gap-3">
-      <button @click="step--" type="button" class="btn flex-1 bg-slate-100 text-slate-700">‹ {{ tr('Zurück') }}</button>
-      <button v-if="step===3" @click="step=4" type="button" class="btn flex-[2] bg-blue-600 text-white">{{ tr('Weiter') }} ›</button>
+      <button @click="step--" type="button" class="btn flex-1 bg-slate-100 text-slate-700">‹ {{ t('common.back') }}</button>
+      <button v-if="step===3" @click="step=4" type="button" class="btn flex-[2] bg-blue-600 text-white">{{ t('common.next') }} ›</button>
     </div>
   </nav>
 
@@ -229,8 +220,8 @@
     <video ref="scanVideo" playsinline muted class="flex-1 min-h-0 w-full object-cover"></video>
     <div class="absolute inset-0 pointer-events-none flex items-center justify-center pb-24"><div class="w-64 h-64 border-4 border-white/80 rounded-3xl"></div></div>
     <div class="p-4 text-center space-y-3" style="padding-bottom:max(1rem, env(safe-area-inset-bottom))">
-      <p class="text-white text-sm">{{ tr('QR-Code oder Barcode in den Rahmen halten') }}</p>
-      <button @click="stopScan" type="button" class="btn bg-white text-slate-900">{{ tr('Abbrechen') }}</button>
+      <p class="text-white text-sm">{{ t('scanner.prompt') }}</p>
+      <button @click="stopScan" type="button" class="btn bg-white text-slate-900">{{ t('common.cancel') }}</button>
     </div>
   </div>
 
@@ -238,62 +229,62 @@
   <div v-if="showSettings" class="fixed inset-0 z-40 bg-slate-100 overflow-y-auto">
     <div class="max-w-xl mx-auto p-4 space-y-4 pb-12">
       <div class="flex items-center justify-between">
-        <h2 class="text-lg font-bold">{{ tr('Einstellungen') }}</h2>
-        <button @click="closeSettings" type="button" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-semibold">{{ tr('Fertig') }}</button>
+        <h2 class="text-lg font-bold">{{ t('settings.title') }}</h2>
+        <button @click="closeSettings" type="button" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-semibold">{{ t('common.done') }}</button>
       </div>
 
       <section class="card space-y-2">
-        <h3 class="font-bold text-sm">🌐 {{ tr('Sprache') }}</h3>
+        <h3 class="font-bold text-sm">🌐 {{ t('settings.language') }}</h3>
         <div class="flex gap-2">
           <button v-for="l in ['de','en']" :key="l" @click="lang=l" type="button" :class="lang===l ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'" class="btn flex-1">{{ l==='de' ? 'Deutsch' : 'English' }}</button>
         </div>
       </section>
 
       <section class="card space-y-2">
-        <h3 class="font-bold text-sm">🔌 {{ tr('Integrationen') }}</h3>
-        <p class="text-xs text-slate-500">{{ tr('Aktivierte Integrationen erscheinen nach dem Erfassen zum An-/Abschalten. n8n führt sie anschließend aus.') }}</p>
+        <h3 class="font-bold text-sm">🔌 {{ t('settings.integrations') }}</h3>
+        <p class="text-xs text-slate-500">{{ t('settings.integrationsDesc') }}</p>
         <label v-for="i in INTEGRATIONS" :key="i.id" class="flex items-center gap-3 p-3 border border-slate-200 rounded-xl">
           <span class="text-xl">{{ i.icon }}</span>
-          <div class="flex-1"><div class="text-sm font-semibold">{{ i.name }}</div><div class="text-[11px] text-slate-500">{{ tr(i.desc) }}</div></div>
+          <div class="flex-1"><div class="text-sm font-semibold">{{ i.name }}</div><div class="text-[11px] text-slate-500">{{ t(i.descKey || i.desc) }}</div></div>
           <input type="checkbox" :value="i.id" v-model="enabledIntegrations" class="w-5 h-5">
         </label>
       </section>
 
       <section class="card space-y-3">
-        <h3 class="font-bold text-sm">📚 {{ tr('Template-Bibliothek') }}</h3>
+        <h3 class="font-bold text-sm">📚 {{ t('settings.library') }}</h3>
         <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">{{ tr('GitHub-Repository mit') }} <code>templates-index.json</code></label>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">{{ t('settings.repoLabel') }} <code>templates-index.json</code></label>
           <input v-model="config.libraryUrl" type="url" class="inp" placeholder="https://github.com/ThZobel/MetaFold-Templates">
         </div>
-        <button @click="loadLibrary" type="button" class="btn bg-slate-900 text-white">{{ libLoading ? tr('Lade …') : tr('Bibliothek laden') }}</button>
+        <button @click="loadLibrary" type="button" class="btn bg-slate-900 text-white">{{ libLoading ? t('common.loading') : t('settings.loadLibrary') }}</button>
         <p v-if="libError" class="text-xs text-rose-600">{{ libError }}</p>
         <div v-for="e in library" :key="e.path" class="flex items-center gap-3 p-3 border border-slate-200 rounded-xl">
           <div class="flex-1 min-w-0">
             <div class="text-sm font-semibold truncate">{{ e.name }}</div>
-            <div class="text-[11px] text-slate-500">{{ prettyCat(e.category) }} · {{ e.fieldsCount }} {{ tr('Felder') }}</div>
+            <div class="text-[11px] text-slate-500">{{ prettyCat(e.category) }} · {{ e.fieldsCount }} {{ t('common.fields') }}</div>
           </div>
-          <span v-if="hasTemplate(e.path)" class="text-xs px-3 py-2 rounded-lg bg-emerald-100 text-emerald-700 font-semibold">✓ {{ tr('Gespeichert') }}</span>
-          <button v-else @click="addFromLibrary(e)" type="button" class="text-xs px-3 py-2 rounded-lg bg-blue-600 text-white font-semibold">＋ {{ tr('Hinzufügen') }}</button>
+          <span v-if="hasTemplate(e.path)" class="text-xs px-3 py-2 rounded-lg bg-emerald-100 text-emerald-700 font-semibold">✓ {{ t('common.saved') }}</span>
+          <button v-else @click="addFromLibrary(e)" type="button" class="text-xs px-3 py-2 rounded-lg bg-blue-600 text-white font-semibold">＋ {{ t('common.add') }}</button>
         </div>
       </section>
 
       <section class="card space-y-2">
-        <h3 class="font-bold text-sm">📂 {{ tr('Datei laden') }}</h3>
-        <p class="text-xs text-slate-500">{{ tr('MetaFold-Template (.json) von deinem Laufwerk oder Share wählen. Es wird auf diesem Gerät gespeichert.') }}</p>
-        <label class="btn bg-slate-100 text-slate-700 border border-slate-300">{{ tr('JSON-Datei wählen') }}
+        <h3 class="font-bold text-sm">📂 {{ t('category.loadFile') }}</h3>
+        <p class="text-xs text-slate-500">{{ t('settings.loadJsonDesc') }}</p>
+        <label class="btn bg-slate-100 text-slate-700 border border-slate-300">{{ t('settings.chooseJson') }}
           <input type="file" accept=".json,application/json" multiple class="hidden" @change="onFiles">
         </label>
       </section>
 
       <section class="card">
-        <h3 class="font-bold text-sm mb-2">{{ tr('Meine Vorlagen') }} ({{ templates.length }})</h3>
-        <p v-if="!templates.length" class="text-xs text-slate-400">{{ tr('Noch keine gespeichert.') }}</p>
+        <h3 class="font-bold text-sm mb-2">{{ t('settings.myTemplates') }} ({{ templates.length }})</h3>
+        <p v-if="!templates.length" class="text-xs text-slate-400">{{ t('settings.noneSaved') }}</p>
         <div v-for="t in templates" :key="t.id" class="flex items-center justify-between gap-2 py-2 border-b border-slate-100 last:border-0">
           <div class="min-w-0">
             <div class="text-sm truncate">{{ t.name }}</div>
             <div class="text-[11px] text-slate-400">{{ t.category }}</div>
           </div>
-          <button @click="removeTemplate(t.id)" type="button" class="text-rose-600 px-3 py-1" :aria-label="tr('Entfernen')">✕</button>
+          <button @click="removeTemplate(t.id)" type="button" class="text-rose-600 px-3 py-1" :aria-label="t('common.remove')">✕</button>
         </div>
       </section>
 
@@ -322,23 +313,227 @@
 <script>
 const { createApp, ref, computed, watch, nextTick } = Vue;
 const DEFAULT_LIB = 'https://github.com/ThZobel/MetaFold-Templates';
-const EN = {
+// i18n Internationalization - Strukturiertes Übersetzungssystem (Deutsch / Englisch)
+const MESSAGES = {
+  de: {
+    steps: {
+      category: 'Kategorie',
+      template: 'Vorlage',
+      capture: 'Erfassen',
+      send: 'Senden'
+    },
+    common: {
+      settings: 'Einstellungen',
+      done: 'Fertig',
+      language: 'Sprache',
+      back: 'Zurück',
+      next: 'Weiter',
+      error: 'Fehler',
+      cancel: 'Abbrechen',
+      saved: 'Gespeichert',
+      remove: 'Entfernen',
+      add: 'Hinzufügen',
+      loading: 'Lade …',
+      sending: 'Wird übertragen …',
+      of: 'von',
+      yes: 'Ja',
+      fields: 'Felder',
+      fieldsFilled: 'Feldern ausgefüllt',
+      template: 'Vorlage',
+      templates: 'Vorlagen',
+      savedSuccess: 'gespeichert',
+      selectPrompt: 'Auswählen …'
+    },
+    category: {
+      title: 'Was möchtest du erfassen?',
+      choose: 'Kategorie wählen',
+      noTemplates: 'Auf diesem Gerät sind noch keine Vorlagen gespeichert.',
+      fromLibrary: 'Aus Bibliothek wählen',
+      loadFile: 'Datei laden'
+    },
+    template: {
+      choose: 'Vorlage wählen'
+    },
+    voice: {
+      title: 'Allgemeine Sprachnotiz',
+      record: 'Aufnehmen',
+      stop: 'Stopp',
+      transcribing: 'Transkribiere...',
+      dictate: 'Diktieren',
+      listening: 'Hört zu …',
+      note: 'Sprachnotiz',
+      placeholder: 'Frei sprechen oder tippen: Besonderheiten, Beobachtungen … (Diktat bitte einheitlich auf Deutsch oder Englisch)',
+      placeholderWhisper: 'Frei sprechen oder tippen: Besonderheiten, Beobachtungen … (Whisper: gemischt Deutsch/Englisch möglich)',
+      placeholderBrowser: 'Frei sprechen oder tippen: Besonderheiten, Beobachtungen … (Browser: Diktat bitte einheitlich auf Deutsch)',
+      whisperActive: 'Whisper aktiv: Fachbegriffe & gemischtes Deutsch/Englisch im selben Satz werden perfekt erkannt.',
+      browserActive: 'Browser-Diktat aktiv: Bitte einheitlich auf Deutsch sprechen.',
+      whisperTranscribed: 'Mit Whisper transkribiert!',
+      noText: 'Kein Text erkannt',
+      audioFailed: 'Audio-Aufnahme fehlgeschlagen'
+    },
+    review: {
+      title: 'Prüfen & senden',
+      nothingRecorded: 'Noch nichts erfasst.',
+      missingRequired: 'Pflichtfelder fehlen:',
+      backToForm: 'Zurück zum Formular',
+      submit: 'Metadaten übertragen',
+      success: 'Erfolgreich übertragen!',
+      newEntry: 'Neue Erfassung'
+    },
+    settings: {
+      title: 'Einstellungen',
+      language: 'Sprache',
+      integrations: 'Integrationen',
+      integrationsDesc: 'Aktivierte Integrationen erscheinen nach dem Erfassen zum An-/Abschalten. n8n führt sie anschließend aus.',
+      library: 'Template-Bibliothek',
+      repoLabel: 'GitHub-Repository mit templates-index.json',
+      loadLibrary: 'Bibliothek laden',
+      libraryError: 'Bibliothek konnte nicht geladen werden',
+      loadJson: 'Datei laden',
+      loadJsonDesc: 'MetaFold-Template (.json) von deinem Laufwerk oder Share wählen. Es wird auf diesem Gerät gespeichert.',
+      chooseJson: 'JSON-Datei wählen',
+      myTemplates: 'Meine Vorlagen',
+      noneSaved: 'Noch keine gespeichert.',
+      n8nWebhook: 'n8n Webhook',
+      n8nMissing: 'Bitte trage in den Einstellungen (⚙️) eine n8n Webhook URL ein.',
+      whisperWebhook: 'n8n Whisper Webhook',
+      whisperDesc: 'Empfängt Audio als multipart/form-data (file) und antwortet mit { text: "..." } für zweisprachige Fachbegriffe.',
+      whisperMissing: 'Bitte trage in den Einstellungen (⚙️) eine Whisper Webhook URL ein.'
+    },
+    scanner: {
+      scan: 'Scan',
+      prompt: 'QR-Code oder Barcode in den Rahmen halten',
+      tagPrompt: 'Tag eingeben, Enter oder Komma',
+      cameraHttps: 'Kamera erfordert HTTPS und Browser-Unterstützung.',
+      cameraUnavailable: 'Kamera nicht verfügbar'
+    },
+    integrations: {
+      elabftwDesc: 'Elektronisches Laborbuch',
+      omeroDesc: 'Bilddatenmanagement',
+      rspaceDesc: 'Elektronisches Laborbuch'
+    },
+    alerts: {
+      speechHttps: 'Spracherkennung erfordert eine sichere Verbindung (HTTPS)!',
+      speechUnsupported: 'Dieser Browser unterstützt keine direkte Spracherkennung.',
+      sendError: 'Fehler beim Senden',
+      noValidTemplate: 'Keine gültige Vorlage gefunden.',
+      templatesUpdated: 'Vorlagen wurden aktualisiert – bitte neu laden.'
+    }
+  },
+  en: {
+    steps: {
+      category: 'Category',
+      template: 'Template',
+      capture: 'Record',
+      send: 'Send'
+    },
+    common: {
+      settings: 'Settings',
+      done: 'Done',
+      language: 'Language',
+      back: 'Back',
+      next: 'Next',
+      error: 'Error',
+      cancel: 'Cancel',
+      saved: 'Saved',
+      remove: 'Remove',
+      add: 'Add',
+      loading: 'Loading …',
+      sending: 'Sending …',
+      of: 'of',
+      yes: 'Yes',
+      fields: 'fields',
+      fieldsFilled: 'fields filled',
+      template: 'template',
+      templates: 'templates',
+      savedSuccess: 'saved',
+      selectPrompt: 'Select …'
+    },
+    category: {
+      title: 'What do you want to record?',
+      choose: 'Choose category',
+      noTemplates: 'No templates saved on this device yet.',
+      fromLibrary: 'Choose from library',
+      loadFile: 'Load file'
+    },
+    template: {
+      choose: 'Choose template'
+    },
+    voice: {
+      title: 'General voice note',
+      record: 'Record',
+      stop: 'Stop',
+      transcribing: 'Transcribing...',
+      dictate: 'Dictate',
+      listening: 'Listening …',
+      note: 'Voice note',
+      placeholder: 'Speak or type: notes, observations … (Please dictate consistently in German or English)',
+      placeholderWhisper: 'Speak or type: notes, observations … (Whisper: mixed German & English supported)',
+      placeholderBrowser: 'Speak or type: notes, observations … (Browser: please dictate consistently in English)',
+      whisperActive: 'Whisper active: Technical terms & mixed German/English in the same sentence are recognized.',
+      browserActive: 'Browser dictation active: Please speak consistently in English.',
+      whisperTranscribed: 'Transcribed with Whisper!',
+      noText: 'No text recognized',
+      audioFailed: 'Audio recording failed'
+    },
+    review: {
+      title: 'Review & send',
+      nothingRecorded: 'Nothing recorded yet.',
+      missingRequired: 'Required fields missing:',
+      backToForm: 'Back to form',
+      submit: 'Send metadata',
+      success: 'Sent successfully!',
+      newEntry: 'New entry'
+    },
+    settings: {
+      title: 'Settings',
+      language: 'Language',
+      integrations: 'Integrations',
+      integrationsDesc: 'Enabled integrations appear after recording so you can switch them on or off. n8n then runs them.',
+      library: 'Template library',
+      repoLabel: 'GitHub repository with templates-index.json',
+      loadLibrary: 'Load library',
+      libraryError: 'Could not load library',
+      loadJson: 'Load file',
+      loadJsonDesc: 'Pick a MetaFold template (.json) from your drive or share. It is stored on this device.',
+      chooseJson: 'Choose JSON file',
+      myTemplates: 'My templates',
+      noneSaved: 'None saved yet.',
+      n8nWebhook: 'n8n Webhook',
+      n8nMissing: 'Please enter an n8n webhook URL in settings (⚙️).',
+      whisperWebhook: 'n8n Whisper Webhook',
+      whisperDesc: 'Receives audio as multipart/form-data (file) and responds with { text: "..." } for bilingual technical terms.',
+      whisperMissing: 'Please enter a Whisper webhook URL in settings (⚙️).'
+    },
+    scanner: {
+      scan: 'Scan',
+      prompt: 'Hold QR code or barcode inside the frame',
+      tagPrompt: 'Type a tag, Enter or comma',
+      cameraHttps: 'Camera requires HTTPS and browser support.',
+      cameraUnavailable: 'Camera not available'
+    },
+    integrations: {
+      elabftwDesc: 'Electronic lab notebook',
+      omeroDesc: 'Image data management',
+      rspaceDesc: 'Electronic lab notebook'
+    },
+    alerts: {
+      speechHttps: 'Speech recognition requires a secure connection (HTTPS)!',
+      speechUnsupported: 'This browser does not support speech recognition.',
+      sendError: 'Error while sending',
+      noValidTemplate: 'No valid template found.',
+      templatesUpdated: 'Templates were updated – please reload them.'
+    }
+  }
+};
+
+// Fallback-Wörterbuch für abwärtskompatible Freitext-Aufrufe tr('Text')
+const EN_FALLBACK = {
  'Kategorie':'Category','Vorlage':'Template','Vorlagen':'Templates','Erfassen':'Record','Senden':'Send',
  'Was möchtest du erfassen?':'What do you want to record?','Kategorie wählen':'Choose category','Vorlage wählen':'Choose template',
  'Auf diesem Gerät sind noch keine Vorlagen gespeichert.':'No templates saved on this device yet.',
  'Aus Bibliothek wählen':'Choose from library','Datei laden':'Load file','Felder':'fields','Feldern ausgefüllt':'fields filled','von':'of',
- 'Allgemeine Sprachnotiz':'General voice note',
- 'Transkribiere...':'Transcribing...',
- 'Transkribieren...':'Transcribing...',
- 'Mit Whisper transkribiert!':'Transcribed with Whisper!',
- 'Audio-Aufnahme fehlgeschlagen':'Audio recording failed',
- 'Bitte trage in den Einstellungen (⚙️) eine Whisper Webhook URL ein.':'Please enter a Whisper webhook URL in settings (⚙️).',
- 'Whisper-Modus aktiv: Fließend Deutsch & englische Fachbegriffe im selben Satz sprechen.':'Whisper active: speak fluent German & English technical terms in the same sentence.',
- 'Browser-Modus aktiv: Bitte einheitlich auf Deutsch oder Englisch sprechen.':'Browser mode active: please speak consistently in German or English.',
- 'n8n Whisper Webhook':'n8n Whisper Webhook',
- 'Empfängt Audio als multipart/form-data (file) und antwortet mit { text: "..." } für zweisprachige Fachbegriffe.':'Receives audio as multipart/form-data (file) and responds with { text: "..." } for bilingual technical terms.',
-
- 'Hinweis: Bitte einheitlich auf Deutsch oder Englisch sprechen (gemäß gewählter App-Sprache).':'Note: Please speak consistently in German or English (matching the app language).','Aufnehmen':'Record','Stopp':'Stop',
+ 'Allgemeine Sprachnotiz':'General voice note','Aufnehmen':'Record','Stopp':'Stop',
  'Frei sprechen oder tippen: Besonderheiten, Probleme, Beobachtungen …':'Speak or type: notes, issues, observations …',
  'Auswählen':'Select','Ja':'Yes','Diktieren':'Dictate','Hört zu …':'Listening …',
  'Erfolgreich übertragen!':'Sent successfully!','Neue Erfassung':'New entry','Prüfen & senden':'Review & send','Sprachnotiz':'Voice note',
@@ -358,13 +553,13 @@ const EN = {
  'QR-Code oder Barcode in den Rahmen halten':'Hold QR code or barcode inside the frame','Abbrechen':'Cancel',
  'Tag eingeben, Enter oder Komma':'Type a tag, Enter or comma','Kamera erfordert HTTPS und Browser-Unterstützung.':'Camera requires HTTPS and browser support.',
  'Kamera nicht verfügbar':'Camera not available','Vorlagen wurden aktualisiert – bitte neu laden.':'Templates were updated – please reload them.'
-}
+};
 
 // Weitere Integrationen hier ergänzen; n8n führt sie anhand der IDs aus
 const INTEGRATIONS = [
-  { id: 'elabftw', name: 'elabFTW', icon: '🧪', desc: 'Elektronisches Laborbuch' },
-  { id: 'omero', name: 'OMERO', icon: '🔬', desc: 'Bilddatenmanagement' },
-  { id: 'rspace', name: 'RSpace', icon: '📓', desc: 'Elektronisches Laborbuch' }
+  { id: 'elabftw', name: 'elabFTW', icon: '🧪', descKey: 'integrations.elabftwDesc', desc: 'Elektronisches Laborbuch' },
+  { id: 'omero', name: 'OMERO', icon: '🔬', descKey: 'integrations.omeroDesc', desc: 'Bilddatenmanagement' },
+  { id: 'rspace', name: 'RSpace', icon: '📓', descKey: 'integrations.rspaceDesc', desc: 'Elektronisches Laborbuch' }
 ];
 
 // github.com/owner/repo  ->  raw.githubusercontent.com/owner/repo/main/
@@ -442,7 +637,28 @@ createApp({
 
     // Sprache & Integrationen
     const lang = ref(localStorage.getItem('metafold_lang') || ((navigator.language || 'de').startsWith('de') ? 'de' : 'en'));
-    const tr = (k) => lang.value === 'en' ? (EN[k] ?? k) : k;
+        // i18n Übersetzungsfunktion mit Dot-Notation & Parameter-Unterstützung
+    const t = (path, params = {}) => {
+      const current = lang.value || 'de';
+      // 1. Suche in strukturierten Messages
+      let val = path.split('.').reduce((o, k) => o?.[k], MESSAGES[current]);
+      // 2. Fallback auf Englisch
+      if (val === undefined && current !== 'en') {
+        val = path.split('.').reduce((o, k) => o?.[k], MESSAGES.en);
+      }
+      // 3. Fallback auf Legacy Freitext
+      if (val === undefined) {
+        val = (current === 'en' && EN_FALLBACK[path]) ? EN_FALLBACK[path] : path;
+      }
+      // 4. Parameter ersetzen {name}
+      if (typeof val === 'string' && params && Object.keys(params).length) {
+        for (const [k, v] of Object.entries(params)) {
+          val = val.replace(new RegExp(`{${k}}`, 'g'), v);
+        }
+      }
+      return val ?? path;
+    };
+    const tr = t; // Abwärtskompatibler Alias
     watch(lang, v => { localStorage.setItem('metafold_lang', v); document.documentElement.lang = v; }, { immediate: true });
     const enabledIntegrations = ref(load('metafold_integrations', []));
     watch(enabledIntegrations, v => localStorage.setItem('metafold_integrations', JSON.stringify(v)), { deep: true });
@@ -452,7 +668,7 @@ createApp({
     watch(templates, v => localStorage.setItem('metafold_templates', JSON.stringify(v)), { deep: true });
 
     // Wizard
-    const stepLabels = ['Kategorie', 'Vorlage', 'Erfassen', 'Senden'];
+    const stepLabels = ['steps.category', 'steps.template', 'steps.capture', 'steps.send'];
     const step = ref(1);
     const selectedCategory = ref('');
     const selectedTemplateId = ref('');
@@ -878,7 +1094,7 @@ createApp({
       activeSpeechField, toggleSpeech: toggleBrowserSpeech, handleSpeechAction,
       speechMode, setSpeechMode, isRecordingAudio, isTranscribing, recordingTarget,
       recordingSeconds, formatTimer, isRecordingNow, sendPayload,
-      lang, tr, INTEGRATIONS, enabledIntegrations, activeIntegrations, integrationChoice, integrationOn,
+      lang, t, tr, INTEGRATIONS, enabledIntegrations, activeIntegrations, integrationChoice, integrationOn,
       tagDraft, onTagInput, commitTag, removeTag, setRating, toggleMulti, scanable, scanning, scanVideo, openScan, stopScan
     };
   }
