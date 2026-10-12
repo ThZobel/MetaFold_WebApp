@@ -192,10 +192,10 @@
             <pre class="mt-2 p-2 bg-white rounded-lg border border-slate-200 text-[10px] text-slate-600 overflow-x-auto">{{ JSON.stringify(serverEchoData.received_metadata, null, 2) }}</pre>
           </details>
           <!-- Direkter Button zu eLabFTW -->
-          <div v-if="serverEchoData.elabftw_url" class="pt-2">
-            <a :href="serverEchoData.elabftw_url" target="_blank" rel="noopener" class="btn w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center justify-center gap-2 py-3 rounded-xl shadow-sm text-sm">
+          <div v-if="serverEchoData.elabftw_url || serverEchoData.url || serverEchoData.experiment_url" class="pt-2">
+            <a :href="serverEchoData.elabftw_url || serverEchoData.url || serverEchoData.experiment_url" target="_blank" rel="noopener" class="btn w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center justify-center gap-2 py-3.5 rounded-xl shadow-md text-sm active:scale-95 transition">
               <span>🧪</span>
-              <span>In eLabFTW öffnen (Experiment #{{ serverEchoData.elabftw_id }}) ↗</span>
+              <span>In eLabFTW öffnen {{ (serverEchoData.elabftw_id || serverEchoData.id) ? '(Experiment #' + (serverEchoData.elabftw_id || serverEchoData.id) + ')' : '' }} ↗</span>
             </a>
           </div>
         </div>
