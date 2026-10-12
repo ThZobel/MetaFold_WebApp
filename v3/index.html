@@ -166,9 +166,33 @@
 
     <!-- Schritt 4: Prüfen & Senden -->
     <section v-if="step===4 && currentTemplate" class="space-y-3">
-      <div v-if="sent" class="card text-center space-y-3 p-6">
+      <div v-if="sent" class="card text-center space-y-4 p-6">
         <div class="text-4xl">✅</div>
-        <p class="font-semibold">{{ tr('review.success') }}</p>
+        <div>
+          <p class="font-bold text-base text-slate-800">{{ tr('review.success') }}</p>
+          <p class="text-xs text-slate-500 mt-0.5">Webhook erfolgreich an n8n übermittelt</p>
+        </div>
+
+        <!-- n8n Server-Echo Anzeige -->
+        <div v-if="serverEchoData" class="text-left bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs space-y-2">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+            <span class="font-bold text-slate-700 flex items-center gap-1.5">
+              <span>🤖</span> n8n Rückmeldung (Echo)
+            </span>
+            <span class="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full text-[10px]">HTTP 200 OK</span>
+          </div>
+          <div class="font-medium text-slate-800 text-sm">
+            {{ serverEchoData.message || 'Daten erfolgreich empfangen!' }}
+          </div>
+          <div v-if="serverEchoData.server_time" class="text-[11px] text-slate-400">
+            Serverzeit: {{ new Date(serverEchoData.server_time).toLocaleTimeString() }}
+          </div>
+          <details v-if="serverEchoData.received_metadata" class="pt-1">
+            <summary class="cursor-pointer text-blue-600 font-medium hover:underline text-[11px]">Empfangene Metadaten anzeigen</summary>
+            <pre class="mt-2 p-2 bg-white rounded-lg border border-slate-200 text-[10px] text-slate-600 overflow-x-auto">{{ JSON.stringify(serverEchoData.received_metadata, null, 2) }}</pre>
+          </details>
+        </div>
+
         <button @click="resetWizard" type="button" class="btn bg-blue-600 text-white">{{ tr('review.newEntry') }}</button>
       </div>
       <template v-else>
@@ -626,7 +650,7 @@ createApp({
       n8nWebhookUrl: localStorage.getItem('metafold_n8n_url') || '',
       whisperWebhookUrl: localStorage.getItem('metafold_whisper_url') || ''
     });
-    const speechMode = ref(localStorage.getItem('metafold_speech_mode') || 'whisper');
+    const speechMode = ref(localStorage.getItem('metafold_speech_mode') || 'browser');
     const setSpeechMode = (m) => {
       speechMode.value = m;
       localStorage.setItem('metafold_speech_mode', m);
@@ -677,6 +701,7 @@ createApp({
     const formData = ref({});
     const generalNote = ref('');
     const sent = ref(false);
+    const serverEchoData = ref(null);
     const isSubmitting = ref(false);
     const sendError = ref('');
 
@@ -737,7 +762,7 @@ createApp({
       step.value = 3;
     };
     const resetWizard = () => {
-      sent.value = false; step.value = 1; selectedCategory.value = ''; selectedTemplateId.value = '';
+      sent.value = false; serverEchoData.value = null; step.value = 1; selectedCategory.value = ''; selectedTemplateId.value = '';
       formData.value = {}; generalNote.value = ''; sendError.value = ''; integrationChoice.value = {};
     };
 
@@ -1068,7 +1093,7 @@ createApp({
         openSettings();
         return;
       }
-      isSubmitting.value = true; sendError.value = '';
+      isSubmitting.value = true; sendError.value = ''; serverEchoData.value = null;
       try {
         const payload = {
           timestamp: new Date().toISOString(),
@@ -1081,6 +1106,8 @@ createApp({
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
         });
         if (!res.ok) throw new Error('HTTP ' + res.status);
+        const echo = await res.json().catch(() => null);
+        serverEchoData.value = echo;
         sent.value = true;
       } catch (err) {
         sendError.value = tr('Fehler beim Senden') + ': ' + err.message;
@@ -1088,7 +1115,7 @@ createApp({
     };
 
     return {
-      config, templates, stepLabels, step, selectedCategory, selectedTemplateId, formData, generalNote, sent,
+      config, templates, stepLabels, step, selectedCategory, selectedTemplateId, formData, generalNote, sent, serverEchoData,
       isSubmitting, sendError, showSettings, library, libLoading, libError, toast, toastOk,
       categories, filteredTemplates, currentTemplate, summaryRows, missingRequired, fieldTotal,
       canGo, goStep, pickCategory, pickTemplate, resetWizard, hasTemplate, removeTemplate,
