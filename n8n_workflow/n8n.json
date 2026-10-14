@@ -1,0 +1,502 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "metafold-test",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a922a5a7-d1f8-48b2-9110-c105b9731fbd",
+      "name": "Webhook In",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -624,
+        384
+      ],
+      "webhookId": "metafold-test"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || {};\nconst meta = body.metadata || {};\nconst template = body.template || {};\nconst templateFields = Array.isArray(template.fields) ? template.fields : [];\nconst fieldMap = new Map(templateFields.map(f => [f.key, f]));\nconst templateName = template.name || 'Standard Messung';\nconst note = body.general_note || '';\nconst integrations = body.integrations || {};\nconst action = body.action || 'direct';\n\nconst isElabActive = integrations.elabftw !== false;\n\nconst dateStr = new Date().toLocaleDateString('de-DE');\nconst title = `[MetaFold] ${templateName} - ${dateStr}`;\n\n// Helper: Convert metadata to elabFTW extra_fields format\nfunction buildElabMetadata(metadataObj, fieldsArray) {\n  const fMap = new Map(fieldsArray.map(f => [f.key, f]));\n  const extra_fields = {};\n  let pos = 1;\n\n  for (const [key, val] of Object.entries(metadataObj)) {\n    if (val === '' || val === null || val === undefined || (Array.isArray(val) && val.length === 0)) continue;\n    \n    const fDef = fMap.get(key);\n    const label = fDef?.label || key;\n    const fType = fDef?.type || (typeof val === 'boolean' ? 'checkbox' : typeof val === 'number' ? 'number' : 'text');\n    \n    let elabType = 'text';\n    if (fType === 'select' || fType === 'dropdown') elabType = 'select';\n    else if (fType === 'checkbox') elabType = 'checkbox';\n    else if (fType === 'number') elabType = 'number';\n    else if (fType === 'date') elabType = 'date';\n    else elabType = 'text';\n    \n    let elabVal = val;\n    if (elabType === 'checkbox') {\n      elabVal = (val === true || val === 'true' || val === 'on' || val === 'Ja' || val === 'yes') ? 'on' : '';\n    } else if (Array.isArray(val)) {\n      elabVal = val.join(', ');\n    } else {\n      elabVal = String(val);\n    }\n    \n    const fieldObj = {\n      type: elabType,\n      value: elabVal,\n      position: pos++\n    };\n    \n    if (fDef?.description) fieldObj.description = fDef.description;\n    if (fDef?.options && elabType === 'select') {\n      fieldObj.options = fDef.options.map(String);\n    }\n    \n    extra_fields[label] = fieldObj;\n  }\n\n  return {\n    extra_fields,\n    elabftw: { display_main_text: true }\n  };\n}\n\nconst directElabMetadata = buildElabMetadata(meta, templateFields);\n\nlet rowsHtml = '';\nfor (const [key, val] of Object.entries(meta)) {\n  if (val !== '' && val !== null && val !== undefined && (!Array.isArray(val) || val.length > 0)) {\n    const fDef = fieldMap.get(key);\n    const label = fDef?.label || key;\n    const displayVal = Array.isArray(val) ? val.join(', ') : val;\n    rowsHtml += `<tr><td style=\"font-weight:600; padding:6px 10px; border:1px solid #e2e8f0; background:#f8fafc;\">${label}</td><td style=\"padding:6px 10px; border:1px solid #e2e8f0;\">${displayVal}</td></tr>`;\n  }\n}\n\nconst bodyHtml = `\n  <h3 style=\"color:#0f172a; margin-bottom:8px;\">📋 MetaFold Metadaten</h3>\n  <table style=\"border-collapse:collapse; width:100%; font-family:system-ui,sans-serif; font-size:13px; margin-bottom:16px;\">\n    <thead><tr style=\"background:#e2e8f0;\"><th style=\"padding:8px 10px; text-align:left; border:1px solid #cbd5e1;\">Parameter</th><th style=\"padding:8px 10px; text-align:left; border:1px solid #cbd5e1;\">Wert</th></tr></thead>\n    <tbody>${rowsHtml || '<tr><td colspan=\"2\" style=\"padding:8px; color:#64748b;\">Keine Metadatenfelder belegt.</td></tr>'}</tbody>\n  </table>\n  ${note ? `<h4 style=\"color:#0f172a; margin-bottom:4px;\">🎙️ Diktierte Sprachnotiz</h4><div style=\"background:#eff6ff; border-left:4px solid #3b82f6; padding:10px 14px; border-radius:4px; font-size:13px; color:#1e3a8a;\">${note.replace(/\\n/g, '<br>')}</div>` : ''}\n  <hr style=\"margin-top:24px; border:0; border-top:1px solid #e2e8f0;\">\n  <p style=\"font-size:11px; color:#94a3b8;\">Automatisch erfasst via MetaFold Mobile Terminal am ${new Date().toLocaleString('de-DE')}</p>\n`;\n\n// LLM System Prompt mit strikten Vorgaben für strukturierte Rückgabe\nconst systemPrompt = `Du bist ein präziser wissenschaftlicher Laborassistent für das MetaFold Metadaten-System.\\nDeine Aufgabe ist es, aus den vom Wissenschaftler eingegebenen Metadaten und der gesprochenen Sprachnotiz einen strukturierten Entwurf zu erstellen.\\n\\nWICHTIGE REGELN:\\n1. Antworte AUSSCHLIESSLICH mit einem validen JSON-Objekt (kein Markdown, keine Backticks wie \\`\\`\\`json, kein Text davor oder danach).\\n2. Das JSON-Objekt MUSS exakt folgende drei Felder enthalten:\\n   - \"title\": Ein kurzer, prägnanter Titel für das Experiment (String).\\n   - \"metadata\": Ein Key-Value JSON-Objekt mit den Metadatenfeldern.\\n   - \"additional_notes\": Ein Fließtext mit allen Beobachtungen, Kontextinformationen oder Hinweisen aus der Sprachnotiz, die zu keinem existierenden Metadatenfeld passen (String).\\n3. STRIKTE VORGABE FÜR \"metadata\":\\n   - Es dürfen AUSSCHLIESSLICH Keys verwendet werden, die in der vorgegebenen Liste der Template-Felder existieren!\\n   - ERFINDE KEINE NEUEN KEYS / FELDNAMEN!\\n   - Übernimm die bestehenden Werte aus \"current_metadata\".\\n   - Falls die Sprachnotiz Informationen enthält, die zu einem existierenden Template-Feld passen oder einen Wert korrigieren/ergänzen, aktualisiere den Wert in \"metadata\".\\n   - Wenn ein Feld vordefinierte Optionen (Dropdown/Select) hat, wähle exakt die am besten passende Option aus den hinterlegten Optionen.\\n4. \"additional_notes\":\\n   - Alle Bemerkungen, Auffälligkeiten, Probenbeobachtungen oder freie Notizen, die zu keinem Template-Feld passen, gehören hierhin (zusammenfassend und prägnant formuliert).`;\n\nconst userPromptObj = {\n  template: {\n    id: template.id || '',\n    name: templateName,\n    category: template.category || '',\n    allowed_fields: templateFields.map(f => ({\n      key: f.key,\n      label: f.label || f.key,\n      type: f.type || 'text',\n      options: f.options || [],\n      description: f.description || ''\n    }))\n  },\n  current_metadata: meta,\n  voice_note: note\n};\n\nconst llmRequest = {\n  model: 'DeepSeek-V4-Flash',\n  messages: [\n    { role: 'system', content: systemPrompt },\n    { role: 'user', content: JSON.stringify(userPromptObj) }\n  ],\n  temperature: 0.2\n};\n\nreturn {\n  json: {\n    action: action,\n    is_elab_active: isElabActive,\n    template_name: templateName,\n    elab_payload: {\n      title: title,\n      body: bodyHtml,\n      metadata: JSON.stringify(directElabMetadata)\n    },\n    direct_metadata_obj: directElabMetadata,\n    llm_request: llmRequest,\n    ai_draft_input: body.ai_draft || null,\n    original_body: body\n  }\n};"
+      },
+      "id": "b893553f-a059-43ad-a83c-a1ca780a5b07",
+      "name": "Prepare Payload & HTML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -384,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.action }}",
+              "value2": "ai_assistant"
+            }
+          ]
+        }
+      },
+      "id": "ec8f9fc1-4f25-4bbc-91dc-e6d693fdf1b6",
+      "name": "AI Assistant Modus?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -144,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://gpt.uni-muenster.de/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer <DEIN_UNIGPT_TOKEN>"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.llm_request }}",
+        "options": {}
+      },
+      "id": "e7d93ed3-4df6-4f6e-84bb-493ef7974d07",
+      "name": "LLM Draft Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        96,
+        160
+      ],
+      "notesInFlow": true,
+      "notes": "🔑 HIER uniGPT Bearer-Token eintragen (Header: Authorization: Bearer <TOKEN>)"
+    },
+    {
+      "parameters": {
+        "jsCode": "const llmRes = $input.first().json;\nconst raw = llmRes.choices?.[0]?.message?.content || '';\nlet draft = null;\n\ntry {\n  const cleaned = raw.replace(/^```json\\s*/i, '').replace(/^```\\s*/i, '').replace(/```\\s*$/i, '').trim();\n  draft = JSON.parse(cleaned);\n} catch (e) {\n  draft = null;\n}\n\nconst prep = $('Prepare Payload & HTML').item.json;\nconst origBody = prep.original_body || {};\nconst origMeta = origBody.metadata || {};\nconst templateFields = origBody.template?.fields || [];\nconst allowedKeys = new Set(templateFields.map(f => f.key));\n\nlet cleanedMetadata = {};\nif (draft && typeof draft.metadata === 'object' && draft.metadata !== null) {\n  for (const [k, v] of Object.entries(draft.metadata)) {\n    if (allowedKeys.size === 0 || allowedKeys.has(k)) {\n      cleanedMetadata[k] = v;\n    }\n  }\n  for (const [k, v] of Object.entries(origMeta)) {\n    if (cleanedMetadata[k] === undefined && v !== '' && v !== null && v !== undefined) {\n      cleanedMetadata[k] = v;\n    }\n  }\n} else {\n  cleanedMetadata = { ...origMeta };\n}\n\nconst finalTitle = (draft && draft.title) ? draft.title : prep.elab_payload.title;\nconst finalNotes = (draft && (draft.additional_notes || draft.notes || draft.text)) ? (draft.additional_notes || draft.notes || draft.text) : (origBody.general_note || '');\n\nreturn {\n  json: {\n    status: 'ai_draft',\n    ai_draft: {\n      title: finalTitle,\n      metadata: cleanedMetadata,\n      additional_notes: finalNotes\n    }\n  }\n};"
+      },
+      "id": "c2932227-b6fd-4e8f-9566-262a9ac9fc2a",
+      "name": "Parse AI Draft",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        336,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "847f2b0c-fc2a-4b02-b22a-abd750adf012",
+      "name": "Respond with AI Draft",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        576,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.action }}",
+              "value2": "approve_and_create"
+            }
+          ]
+        }
+      },
+      "id": "0960cf51-2636-4f5d-8481-397f0eb15e92",
+      "name": "Approve & Create?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        96,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const prep = $json;\nconst body = prep.original_body || {};\nconst draft = body.ai_draft || prep.ai_draft_input || {};\nconst meta = (draft.metadata && typeof draft.metadata === 'object') ? draft.metadata : (body.metadata || {});\nconst template = body.template || {};\nconst templateFields = Array.isArray(template.fields) ? template.fields : [];\nconst fieldMap = new Map(templateFields.map(f => [f.key, f]));\n\nconst finalTitle = draft.title || prep.elab_payload.title;\nconst additionalNotes = draft.additional_notes || draft.notes || draft.text || '';\n\n// Extra Fields for eLabFTW\nconst extra_fields = {};\nlet pos = 1;\n\nfor (const [key, val] of Object.entries(meta)) {\n  if (val === '' || val === null || val === undefined || (Array.isArray(val) && val.length === 0)) continue;\n  \n  const fDef = fieldMap.get(key);\n  const label = fDef?.label || key;\n  const fType = fDef?.type || (typeof val === 'boolean' ? 'checkbox' : typeof val === 'number' ? 'number' : 'text');\n  \n  let elabType = 'text';\n  if (fType === 'select' || fType === 'dropdown') elabType = 'select';\n  else if (fType === 'checkbox') elabType = 'checkbox';\n  else if (fType === 'number') elabType = 'number';\n  else if (fType === 'date') elabType = 'date';\n  else elabType = 'text';\n  \n  let elabVal = val;\n  if (elabType === 'checkbox') {\n    elabVal = (val === true || val === 'true' || val === 'on' || val === 'Ja' || val === 'yes') ? 'on' : '';\n  } else if (Array.isArray(val)) {\n    elabVal = val.join(', ');\n  } else {\n    elabVal = String(val);\n  }\n  \n  const fieldObj = {\n    type: elabType,\n    value: elabVal,\n    position: pos++\n  };\n  \n  if (fDef?.description) fieldObj.description = fDef.description;\n  if (fDef?.options && elabType === 'select') {\n    fieldObj.options = fDef.options.map(String);\n  }\n  \n  extra_fields[label] = fieldObj;\n}\n\nconst elabftwMetadata = {\n  extra_fields: extra_fields,\n  elabftw: {\n    display_main_text: true\n  }\n};\n\nlet rowsHtml = '';\nfor (const [key, val] of Object.entries(meta)) {\n  if (val !== '' && val !== null && val !== undefined && (!Array.isArray(val) || val.length > 0)) {\n    const fDef = fieldMap.get(key);\n    const label = fDef?.label || key;\n    const displayVal = Array.isArray(val) ? val.join(', ') : val;\n    rowsHtml += `<tr><td style=\"font-weight:600; padding:6px 10px; border:1px solid #e2e8f0; background:#f8fafc;\">${label}</td><td style=\"padding:6px 10px; border:1px solid #e2e8f0;\">${displayVal}</td></tr>`;\n  }\n}\n\nconst finalBodyHtml = `\n  <h3 style=\"color:#0f172a; margin-bottom:8px;\">📋 MetaFold Laborbericht (KI-geprüft & freigegeben)</h3>\n  <table style=\"border-collapse:collapse; width:100%; font-family:system-ui,sans-serif; font-size:13px; margin-bottom:16px;\">\n    <thead><tr style=\"background:#e2e8f0;\"><th style=\"padding:8px 10px; text-align:left; border:1px solid #cbd5e1;\">Parameter</th><th style=\"padding:8px 10px; text-align:left; border:1px solid #cbd5e1;\">Wert</th></tr></thead>\n    <tbody>${rowsHtml || '<tr><td colspan=\"2\" style=\"padding:8px; color:#64748b;\">Keine Metadatenfelder belegt.</td></tr>'}</tbody>\n  </table>\n  ${additionalNotes ? `<h4 style=\"color:#0f172a; margin-bottom:4px;\">📝 Zusätzliche Notizen & Beobachtungen</h4><div style=\"background:#eff6ff; border-left:4px solid #3b82f6; padding:10px 14px; border-radius:4px; font-size:13px; color:#1e3a8a;\">${additionalNotes.replace(/\\n/g, '<br>')}</div>` : ''}\n  <hr style=\"margin-top:24px; border:0; border-top:1px solid #e2e8f0;\">\n  <p style=\"font-size:11px; color:#94a3b8;\">Automatisch erfasst & KI-aufbereitet via MetaFold Mobile Terminal am ${new Date().toLocaleString('de-DE')}</p>\n`;\n\nreturn {\n  json: {\n    ...prep,\n    elab_payload: {\n      title: finalTitle,\n      body: finalBodyHtml,\n      metadata: JSON.stringify(elabftwMetadata)\n    },\n    extra_fields_obj: elabftwMetadata\n  }\n};"
+      },
+      "id": "c75f877d-63a3-499f-b4ce-11159ccb853f",
+      "name": "Build Final Payload from AI Draft",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        352,
+        368
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.is_elab_active }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "38922cfe-50cb-4ba2-917a-7756d16e85ab",
+      "name": "elabFTW aktiv?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        576,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://elab.uni-muenster.de/api/v2/experiments?api_key=<DEIN_ELABFTW_API_KEY>",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "<DEIN_ELABFTW_API_KEY>"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.elab_payload }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "6c4d9819-a424-476c-934c-0468cfb171df",
+      "name": "Create eLabFTW Experiment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        816,
+        368
+      ],
+      "notesInFlow": true,
+      "notes": "🔑 HIER eLabFTW API-Key eintragen (URL: ?api_key=... und Header: Authorization)"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://elab.uni-muenster.de/api/v2/experiments/{{ $json.body?.id || $json.id || ($json.headers?.location ? $json.headers.location.split('/').pop() : '') }}?api_key=<DEIN_ELABFTW_API_KEY>",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "<DEIN_ELABFTW_API_KEY>"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"metadata\": {{ JSON.stringify($('Build Final Payload from AI Draft').item?.json?.elab_payload?.metadata || $('Prepare Payload & HTML').item?.json?.elab_payload?.metadata) }}\n}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "d4e5f6a1-7b8c-49d2-9381-123456789abc",
+      "name": "Update eLabFTW Extra Fields (PATCH)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1040,
+        368
+      ],
+      "notesInFlow": true,
+      "notes": "🔑 HIER eLabFTW API-Key eintragen (URL: ?api_key=... und Header: Authorization)"
+    },
+    {
+      "parameters": {
+        "jsCode": "const createRes = $('Create eLabFTW Experiment').item.json;\nconst expId = createRes.id || (createRes.body && createRes.body.id) || (createRes.headers && createRes.headers.location ? createRes.headers.location.split('/').pop() : null);\nconst elabBase = 'https://elab.uni-muenster.de';\n\nconst expUrl = expId ? `${elabBase}/experiments.php?mode=view&id=${expId}` : null;\n\nreturn {\n  json: {\n    status: 'success',\n    server_time: new Date().toISOString(),\n    message: expId \n      ? `✓ Experiment #${expId} in eLabFTW angelegt (inkl. Extra Fields)!` \n      : '✓ Metadaten erfolgreich empfangen!',\n    elabftw_id: expId,\n    elabftw_url: expUrl\n  }\n};"
+      },
+      "id": "6ef2234c-99de-4cb8-8141-0344248f98a7",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1260,
+        368
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\n  json: {\n    status: 'success',\n    server_time: new Date().toISOString(),\n    message: '✓ Metadaten erfolgreich empfangen (keine Integration aktiv).'\n  }\n};"
+      },
+      "id": "658664ff-3876-4367-9bfc-2c2ba0fb2de2",
+      "name": "Format Response (No Integration)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        816,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "886c95a1-356f-4cbd-838f-0811d01c6379",
+      "name": "Respond to Webhook1",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1480,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "content": "# 🧪 MetaFold Mobile Terminal ↔ uniGPT ↔ eLabFTW\n\n### ⚙️ Vor dem ersten Start konfigurieren:\n\n1. **uniGPT API-Token eintragen:**\n   Siehe gelbe Notiz über dem Knoten **`LLM Draft Request`**.\n\n2. **eLabFTW API-Key eintragen:**\n   Siehe rote Notiz über **`Create eLabFTW Experiment`** & **`Update eLabFTW Extra Fields`**.\n\n3. **Webhook URL in PWA hinterlegen:**\n   Kopiere die Webhook-URL aus dem linken Knoten **`Webhook In`** und trage sie in der PWA unter **Einstellungen (⚙️) → n8n Webhook** ein.",
+        "height": 240,
+        "width": 480,
+        "color": 6
+      },
+      "id": "sticky-workflow-overview",
+      "name": "Sticky Note - Übersicht & Setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -624,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 🔑 1. uniGPT API Token eintragen\n\n**Ziel-Knoten:** `LLM Draft Request`\n\n**Schritte:**\n1. Öffne den darunterliegenden Knoten **`LLM Draft Request`** (Doppelklick).\n2. Scrolle zu **Headers** → **`Authorization`**.\n3. Ersetze `<DEIN_UNIGPT_TOKEN>` durch deinen Bearer-Token:\n   `Bearer sk-DeinEchterTokenHier...`",
+        "height": 220,
+        "width": 380,
+        "color": 4
+      },
+      "id": "sticky-unigpt-token",
+      "name": "Sticky Note - uniGPT Token",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        50,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 🔑 2. eLabFTW API Key eintragen\n\n**Ziel-Knoten:**\n1. `Create eLabFTW Experiment` (POST)\n2. `Update eLabFTW Extra Fields (PATCH)` (PATCH)\n\n**Schritte in BEIDEN Knoten:**\n1. In der **URL**: Ersetze `<DEIN_ELABFTW_API_KEY>` am Ende von `?api_key=...`\n2. In **Headers** → **`Authorization`**: Ersetze `<DEIN_ELABFTW_API_KEY>` durch deinen echten API-Key.",
+        "height": 240,
+        "width": 520,
+        "color": 3
+      },
+      "id": "sticky-elabftw-key",
+      "name": "Sticky Note - eLabFTW Key",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        780,
+        60
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook In": {
+      "main": [
+        [
+          {
+            "node": "Prepare Payload & HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Payload & HTML": {
+      "main": [
+        [
+          {
+            "node": "AI Assistant Modus?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Assistant Modus?": {
+      "main": [
+        [
+          {
+            "node": "LLM Draft Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Approve & Create?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Draft Request": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Draft": {
+      "main": [
+        [
+          {
+            "node": "Respond with AI Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approve & Create?": {
+      "main": [
+        [
+          {
+            "node": "Build Final Payload from AI Draft",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "elabFTW aktiv?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Final Payload from AI Draft": {
+      "main": [
+        [
+          {
+            "node": "elabFTW aktiv?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "elabFTW aktiv?": {
+      "main": [
+        [
+          {
+            "node": "Create eLabFTW Experiment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Response (No Integration)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create eLabFTW Experiment": {
+      "main": [
+        [
+          {
+            "node": "Update eLabFTW Extra Fields (PATCH)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update eLabFTW Extra Fields (PATCH)": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response (No Integration)": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "6efe16d695e3b8eb8517e6ea93a8e8f465c3e7fff2ada0a71fcd4aa9033622f2"
+  }
+}
