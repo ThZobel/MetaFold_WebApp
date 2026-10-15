@@ -640,10 +640,10 @@
 
       <!-- Suche & Schnellfilter -->
       <div class="p-3 border-b border-slate-100 bg-white space-y-2">
-        <div class="relative">
-          <input v-model="librarySearch" type="text" :placeholder="tr('settings.librarySearchPlaceholder')" class="inp text-xs py-2 pl-8 bg-slate-50">
-          <span class="absolute left-2.5 top-2.5 text-xs text-slate-400">🔍</span>
-          <button v-if="librarySearch" @click="librarySearch = ''" class="absolute right-2.5 top-2 text-xs text-slate-400 hover:text-slate-600">✕</button>
+        <div class="relative flex items-center">
+          <span class="absolute left-3 text-slate-400 pointer-events-none text-sm select-none flex items-center justify-center">🔍</span>
+          <input v-model="librarySearch" type="text" :placeholder="tr('settings.librarySearchPlaceholder')" class="w-full pl-9 pr-9 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 transition">
+          <button v-if="librarySearch" @click="librarySearch = ''" type="button" class="absolute right-2.5 w-5 h-5 rounded-full flex items-center justify-center text-xs text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition">✕</button>
         </div>
         <div class="flex items-center justify-between text-xs text-slate-500 px-1">
           <span>{{ tr('settings.libraryFound', { count: filteredLibrary.length }) }}</span>
@@ -1150,6 +1150,7 @@ createApp({
       localStorage.setItem('metafold_speech_mode', m);
     };
     const stored = load('metafold_templates', []);
+    const seenTplKeys = new Set();
     const templates = ref(stored.filter(t => t.raw).map(t => {
       const p = parseTpl(t.raw, t.id, t.name);
       if (!p) return null;
@@ -1161,6 +1162,14 @@ createApp({
           p.category = t.category;
         }
       }
+      // Deduplizieren nach ID oder normalisiertem Namen
+      const idKey = (p.id || '').trim().toLowerCase();
+      const nameKey = (p.name || '').trim().toLowerCase();
+      if ((idKey && seenTplKeys.has('id:' + idKey)) || (nameKey && seenTplKeys.has('name:' + nameKey))) {
+        return null;
+      }
+      if (idKey) seenTplKeys.add('id:' + idKey);
+      if (nameKey) seenTplKeys.add('name:' + nameKey);
       return p;
     }).filter(Boolean));
     const droppedTpls = stored.length - templates.value.length;
@@ -1322,10 +1331,22 @@ createApp({
 
     // Templates verwalten
     const upsert = (p) => {
-      const i = templates.value.findIndex(t => t.id === p.id);
+      const cleanPName = (p.name || '').trim().toLowerCase();
+      const i = templates.value.findIndex(t => 
+        t.id === p.id || 
+        (cleanPName && t.name && t.name.trim().toLowerCase() === cleanPName)
+      );
       if (i >= 0) templates.value.splice(i, 1, p); else templates.value.push(p);
     };
-    const hasTemplate = (id) => templates.value.some(t => t.id === id);
+    const hasTemplate = (idOrPath) => {
+      if (!idOrPath) return false;
+      const cleanPathName = String(idOrPath).replace(/^.*[\\\/]/, '').replace(/\.json$/i, '').trim().toLowerCase();
+      return templates.value.some(t => 
+        t.id === idOrPath || 
+        t.id?.toLowerCase() === idOrPath.toLowerCase() ||
+        (t.name && (t.name.trim().toLowerCase() === cleanPathName || t.name.trim().toLowerCase() === String(idOrPath).trim().toLowerCase()))
+      );
+    };
     const removeTemplate = (id) => {
       templates.value = templates.value.filter(t => t.id !== id);
       if (selectedTemplateId.value === id || !categories.value.some(c => c.name === selectedCategory.value)) resetWizard();
@@ -1338,7 +1359,19 @@ createApp({
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         if (!Array.isArray(data) || !data.length) throw new Error('Index leer');
-        library.value = data;
+        
+        // Dubletten im GitHub-Index nach Pfad und Name filtern
+        const seenLib = new Set();
+        library.value = data.filter(e => {
+          const pathKey = (e.path || e.id || '').toLowerCase();
+          const nameKey = (e.name || '').trim().toLowerCase();
+          if ((pathKey && seenLib.has('p:' + pathKey)) || (nameKey && seenLib.has('n:' + nameKey))) {
+            return false;
+          }
+          if (pathKey) seenLib.add('p:' + pathKey);
+          if (nameKey) seenLib.add('n:' + nameKey);
+          return true;
+        });
       } catch (e) {
         libError.value = `${tr('Bibliothek konnte nicht geladen werden')} (${e.message}).`;
       } finally { libLoading.value = false; }
