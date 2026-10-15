@@ -527,7 +527,7 @@ const rawBase = (u) => {
   const m = u.match(/github\.com\/([^\/]+)\/([^\/#?]+?)(?:\.git)?(?:\/(?:tree|blob)\/([^\/]+))?\/?$/);
   return m ? `https://raw.githubusercontent.com/${m[1]}/${m[2]}/${m[3] || 'main'}/` : u.replace(/\/?$/, '/');
 };
-const prettyCat = (c) => /^category\s*\d+$/i.test(c || '') ? c.replace(/category\s*/i, 'Kategorie ') : (c || 'Allgemein');
+const prettyCat = (c) => /^category\s*3$/i.test(c || '') ? 'Microscopy' : /^category\s*\d+$/i.test(c || '') ? c.replace(/category\s*/i, 'Kategorie ') : (c || 'Allgemein');
 
 // MetaFold-Template -> interne Form
 const parseTpl = (raw, id, fallback = 'Vorlage') => {
