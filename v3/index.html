@@ -27,8 +27,20 @@
   <!-- Kopf: klein, mit Fortschritt -->
   <header class="sticky top-0 z-20 bg-white border-b border-slate-200 px-4 pt-3 pb-2">
     <div class="flex items-center justify-between">
-      <h1 class="text-base font-bold text-slate-900">MetaFold Terminal</h1>
-      <button @click="openSettings" type="button" :aria-label="tr('common.settings')" class="w-9 h-9 rounded-full bg-slate-100 border border-slate-200 text-base">⚙️</button>
+      <div class="flex items-center gap-2 min-w-0">
+        <h1 class="text-base font-bold text-slate-900 shrink-0">MetaFold</h1>
+        <!-- Benutzer-Badge / Login-Status -->
+        <button v-if="currentUser" @click="openUserMenu" type="button" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-800 active:scale-95 transition truncate" :title="tr('auth.switchUser')">
+          <span>👤</span>
+          <span class="truncate max-w-[130px]">{{ currentUser.name }}</span>
+          <span class="text-[10px] text-blue-500">▼</span>
+        </button>
+        <button v-else @click="openLogin" type="button" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-800 active:scale-95 transition animate-pulse">
+          <span>🔒</span>
+          <span>{{ tr('auth.loginBtn') }}</span>
+        </button>
+      </div>
+      <button @click="openSettings" type="button" :aria-label="tr('common.settings')" class="w-9 h-9 rounded-full bg-slate-100 border border-slate-200 text-base shrink-0">⚙️</button>
     </div>
     <div class="flex gap-2 mt-2.5">
       <button v-for="(s,i) in stepLabels" :key="s" type="button" @click="goStep(i+1)" :disabled="!canGo(i+1)" class="flex-1 text-left disabled:opacity-40">
@@ -206,6 +218,7 @@
         <div class="text-4xl">✅</div>
         <div>
           <p class="font-bold text-base text-slate-800">{{ tr('review.success') }}</p>
+          <p v-if="currentUser" class="text-xs text-blue-700 font-medium mt-0.5">👤 Erfasst für <b>{{ currentUser.name }}</b></p>
           <p class="text-xs text-slate-500 mt-0.5">Webhook erfolgreich an n8n übermittelt</p>
         </div>
 
@@ -236,7 +249,14 @@
           </div>
         </div>
 
-        <button @click="resetWizard" type="button" class="btn bg-blue-600 text-white">{{ tr('review.newEntry') }}</button>
+        <div class="space-y-2 pt-1">
+          <button @click="resetWizard" type="button" class="btn bg-blue-600 text-white">
+            {{ tr('review.newEntry') }} {{ currentUser ? '(' + currentUser.name + ')' : '' }}
+          </button>
+          <button @click="logout" type="button" class="btn bg-slate-100 text-slate-700 hover:bg-slate-200">
+            🔄 {{ tr('auth.switchUser') }}
+          </button>
+        </div>
       </div>
       <!-- Schritt 4 - Zustand B: KI-Entwurf zur Freigabe (strukturiert & interaktiv) -->
       <div v-else-if="aiDraft" class="card space-y-4 p-5 border-2 border-indigo-200 bg-indigo-50/20">
@@ -334,9 +354,18 @@
 
       <!-- Schritt 4 - Zustand C: Zusammenfassung vor dem Senden -->
       <template v-else>
-        <div>
-          <h2 class="text-lg font-bold">{{ tr('review.title') }}</h2>
-          <p class="text-xs text-slate-500">{{ selectedCategory }} · {{ currentTemplate.name }} · {{ summaryRows.length }} {{ tr('common.of') }} {{ fieldTotal(currentTemplate) }} {{ tr('common.fieldsFilled') }}</p>
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-lg font-bold">{{ tr('review.title') }}</h2>
+            <p class="text-xs text-slate-500">{{ selectedCategory }} · {{ currentTemplate.name }} · {{ summaryRows.length }} {{ tr('common.of') }} {{ fieldTotal(currentTemplate) }} {{ tr('common.fieldsFilled') }}</p>
+          </div>
+          <!-- Erfasser Badge -->
+          <div v-if="currentUser" @click="openLogin" class="text-right cursor-pointer group" :title="tr('auth.switchUser')">
+            <span class="text-[10px] text-slate-400 block font-medium">{{ tr('auth.recordedBy') }}</span>
+            <span class="text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-full inline-flex items-center gap-1 group-hover:bg-blue-100 transition">
+              <span>👤</span> {{ currentUser.name }}
+            </span>
+          </div>
         </div>
 
         <!-- Interaktive Zusammenfassung mit Klick-Korrektur (Typ-spezifisch) -->
@@ -466,6 +495,35 @@
         <h2 class="text-lg font-bold">{{ tr('settings.title') }}</h2>
         <button @click="closeSettings" type="button" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-semibold">{{ tr('common.done') }}</button>
       </div>
+
+      <!-- Benutzerverwaltung & Terminal-Station -->
+      <section class="card space-y-3 bg-gradient-to-br from-white to-blue-50/30">
+        <div class="flex items-center justify-between">
+          <h3 class="font-bold text-sm">👤 {{ tr('auth.userManagement') }}</h3>
+          <span v-if="currentUser" class="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">Angemeldet</span>
+          <span v-else class="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full">Nicht angemeldet</span>
+        </div>
+        
+        <div v-if="currentUser" class="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between">
+          <div class="min-w-0 pr-2">
+            <div class="text-sm font-bold text-slate-800 truncate">{{ currentUser.name }}</div>
+            <div class="text-[11px] text-slate-500">ID: <code>{{ currentUser.id }}</code> {{ currentUser.badge_id ? '· Badge: ' + currentUser.badge_id : '' }}</div>
+          </div>
+          <button @click="logout" type="button" class="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold active:scale-95 transition">
+            {{ tr('auth.logout') }}
+          </button>
+        </div>
+        <div v-else>
+          <button @click="openLogin" type="button" class="btn bg-blue-600 text-white text-xs py-2.5 font-semibold">
+            🔒 {{ tr('auth.loginBtn') }}
+          </button>
+        </div>
+
+        <label class="flex items-start gap-3 p-2 text-xs text-slate-600 cursor-pointer">
+          <input type="checkbox" v-model="autoLogoutAfterSend" class="w-4 h-4 mt-0.5 rounded text-blue-600">
+          <span>{{ tr('auth.kioskMode') }}</span>
+        </label>
+      </section>
 
       <section class="card space-y-2">
         <h3 class="font-bold text-sm">🌐 {{ tr('settings.language') }}</h3>
@@ -617,6 +675,140 @@
         </button>
         <button type="button" @click="saveRename" :disabled="!renameModal.name.trim()" class="btn flex-1 bg-blue-600 text-white disabled:opacity-40">
           {{ tr('common.save') }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Login / Terminal Authentifizierung (NFC / QR / PIN) -->
+  <div v-if="showLoginModal || !currentUser" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-5 sm:p-6 shadow-2xl border border-slate-200 text-center space-y-4 my-auto animate-in fade-in zoom-in-95 duration-150">
+      <div>
+        <div class="w-14 h-14 mx-auto rounded-2xl bg-blue-100 border border-blue-200 flex items-center justify-center text-3xl mb-2 shadow-sm">
+          {{ loginStep === 1 ? '🪪' : '🔐' }}
+        </div>
+        <h2 class="text-lg font-bold text-slate-900">{{ tr('auth.title') }}</h2>
+        <p class="text-xs text-slate-500 mt-0.5">
+          {{ loginStep === 1 ? tr('auth.subtitle') : tr('auth.pinPrompt') }}
+        </p>
+      </div>
+
+      <!-- Schritt 1: Name / Chip / QR-Code -->
+      <div v-if="loginStep === 1" class="space-y-3 text-left">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">{{ tr('auth.identifyPrompt') }}</label>
+          <div class="relative">
+            <input ref="loginInputRef" v-model="loginIdentifier" type="text"
+              enterkeyhint="next"
+              @keydown.enter.prevent="proceedToPin"
+              placeholder="Name oder NFC/QR scannen..."
+              class="inp pr-10 text-sm font-medium">
+            <button v-if="loginIdentifier" @click="loginIdentifier = ''" type="button" class="absolute right-2.5 top-2.5 w-6 h-6 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600">✕</button>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-1">
+            💡 {{ tr('auth.identifyHint') }}
+          </p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 pt-1">
+          <button type="button" @click="startLoginQrScan" class="btn py-2.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold border border-slate-300 flex items-center justify-center gap-1.5">
+            <span>📷</span>
+            <span>{{ tr('auth.scanQr') }}</span>
+          </button>
+          <button type="button" @click="startWebNfcScan" :class="isNfcListening ? 'bg-emerald-100 text-emerald-900 border-emerald-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'" class="btn py-2.5 px-3 text-xs font-semibold border flex items-center justify-center gap-1.5">
+            <span>📶</span>
+            <span>{{ isNfcListening ? tr('auth.nfcListening') : tr('auth.scanNfc') }}</span>
+          </button>
+        </div>
+
+        <!-- Schnellwahl für Test / PoC -->
+        <div class="pt-2 border-t border-slate-100">
+          <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">{{ tr('auth.quickSelect') }}</p>
+          <div class="flex flex-wrap gap-1.5">
+            <button v-for="u in demoUsers" :key="u.id" type="button" @click="selectDemoUser(u)" class="px-2.5 py-1 rounded-full bg-slate-100 hover:bg-blue-100 border border-slate-200 text-[11px] text-slate-700 font-medium active:scale-95 transition">
+              {{ u.name }}
+            </button>
+          </div>
+        </div>
+
+        <button type="button" @click="proceedToPin" :disabled="!loginIdentifier.trim()" class="btn w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-semibold shadow-sm mt-2">
+          {{ tr('common.next') }} (PIN) ›
+        </button>
+      </div>
+
+      <!-- Schritt 2: PIN-Eingabe Pad -->
+      <div v-else class="space-y-3">
+        <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-left">
+          <div class="min-w-0 pr-2">
+            <p class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">{{ tr('auth.identifiedAs') }}</p>
+            <p class="text-sm font-bold text-slate-800 truncate">{{ loginIdentifier }}</p>
+          </div>
+          <button type="button" @click="loginStep = 1; loginPin = ''; loginError = '';" class="text-xs text-blue-600 font-semibold hover:underline">
+            {{ tr('auth.changeUser') }}
+          </button>
+        </div>
+
+        <!-- PIN Dots Indicator -->
+        <div class="flex justify-center items-center gap-3 py-2">
+          <div v-for="i in 4" :key="i" :class="loginPin.length >= i ? 'bg-blue-600 scale-110 shadow-sm' : 'bg-slate-200'" class="w-4 h-4 rounded-full transition-all duration-150"></div>
+        </div>
+
+        <div v-if="loginError" class="p-2 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-medium animate-pulse">
+          ⚠️ {{ loginError }}
+        </div>
+
+        <!-- On-Screen Numeric Keypad -->
+        <div class="grid grid-cols-3 gap-2 pt-1 max-w-[240px] mx-auto select-none">
+          <button v-for="d in [1,2,3,4,5,6,7,8,9]" :key="d" type="button" @click="pressPinDigit(d)" class="h-12 rounded-xl bg-slate-100 hover:bg-slate-200 text-lg font-bold text-slate-800 active:scale-90 transition">
+            {{ d }}
+          </button>
+          <button type="button" @click="loginPin = ''; loginError = '';" class="h-12 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-500 active:scale-90 transition">
+            C
+          </button>
+          <button type="button" @click="pressPinDigit(0)" class="h-12 rounded-xl bg-slate-100 hover:bg-slate-200 text-lg font-bold text-slate-800 active:scale-90 transition">
+            0
+          </button>
+          <button type="button" @click="loginPin = loginPin.slice(0, -1)" class="h-12 rounded-xl bg-slate-100 hover:bg-slate-200 text-base font-semibold text-slate-600 active:scale-90 transition">
+            ⌫
+          </button>
+        </div>
+
+        <button type="button" @click="submitLogin" :disabled="loginPin.length < 4 || isLoggingIn" class="btn w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-semibold shadow-sm flex items-center justify-center gap-1.5 mt-2">
+          <span v-if="isLoggingIn" class="inline-block animate-spin">⏳</span>
+          <span>{{ isLoggingIn ? tr('common.sending') : tr('auth.loginBtn') }}</span>
+        </button>
+      </div>
+
+      <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
+        <button v-if="currentUser" type="button" @click="showLoginModal = false" class="hover:text-slate-600">
+          {{ tr('common.cancel') }}
+        </button>
+        <span v-else></span>
+        <button type="button" @click="openSettings" class="hover:text-blue-600 flex items-center gap-1 font-medium">
+          <span>⚙️</span>
+          <span>{{ tr('settings.n8nWebhook') }}</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Benutzer-Menü / Schnellwechsel -->
+  <div v-if="showUserMenuModal" class="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" @click.self="showUserMenuModal = false">
+    <div class="bg-white rounded-2xl p-5 w-full max-w-xs shadow-2xl border border-slate-200 text-center space-y-3">
+      <div class="w-12 h-12 mx-auto rounded-full bg-blue-100 text-blue-700 text-2xl flex items-center justify-center">👤</div>
+      <div>
+        <h3 class="font-bold text-base text-slate-900">{{ currentUser?.name }}</h3>
+        <p class="text-xs text-slate-500">ID: <code>{{ currentUser?.id }}</code></p>
+      </div>
+      <div class="space-y-2 pt-2">
+        <button type="button" @click="logout" class="btn w-full bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs py-2.5 font-semibold">
+          🔄 {{ tr('auth.switchUser') }}
+        </button>
+        <button type="button" @click="logout" class="btn w-full bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs py-2.5 font-semibold border border-rose-200">
+          🔒 {{ tr('auth.logout') }}
+        </button>
+        <button type="button" @click="showUserMenuModal = false" class="btn w-full bg-white hover:bg-slate-50 text-slate-500 text-xs py-2">
+          {{ tr('common.cancel') }}
         </button>
       </div>
     </div>
@@ -845,6 +1037,29 @@ const MESSAGES = {
       cameraHttps: 'Kamera erfordert HTTPS und Browser-Unterstützung.',
       cameraUnavailable: 'Kamera nicht verfügbar'
     },
+    auth: {
+      title: 'Terminal-Anmeldung',
+      subtitle: 'Nutzer identifizieren & PIN eingeben',
+      identifyPrompt: 'Benutzername, Kürzel oder Chip-Scan',
+      identifyHint: 'Zebra/Honeywell Scanner & NFC tippen hier automatisch ein.',
+      pinPrompt: 'Bitte 4-stellige PIN eingeben',
+      loginBtn: 'Anmelden',
+      scanQr: 'QR scannen',
+      scanNfc: 'NFC scannen',
+      nfcListening: 'NFC bereit (Tag anhalten)...',
+      nfcUnsupported: 'Web NFC wird von diesem Browser nicht unterstützt.',
+      quickSelect: 'Schnellwahl (PoC)',
+      identifiedAs: 'Identifiziert als',
+      changeUser: 'Ändern',
+      logout: 'Abmelden',
+      switchUser: 'Nutzer wechseln',
+      loggedAs: 'Angemeldet als {name}',
+      loginSuccess: 'Willkommen, {name}!',
+      loginFailed: 'Ungültiger Benutzer oder falsche PIN.',
+      recordedBy: 'Erfasser',
+      kioskMode: 'Kiosk-Modus: Nach erfolgreichem Senden automatisch abmelden',
+      userManagement: 'Benutzerverwaltung & Terminal'
+    },
     integrations: {
       elabftwDesc: 'Elektronisches Laborbuch',
       omeroDesc: 'Bilddatenmanagement',
@@ -988,6 +1203,29 @@ const MESSAGES = {
       tagPrompt: 'Type a tag, Enter or comma',
       cameraHttps: 'Camera requires HTTPS and browser support.',
       cameraUnavailable: 'Camera not available'
+    },
+    auth: {
+      title: 'Terminal Login',
+      subtitle: 'Identify user & enter PIN',
+      identifyPrompt: 'Username, ID or badge scan',
+      identifyHint: 'Zebra/Honeywell scanner & NFC type automatically here.',
+      pinPrompt: 'Please enter 4-digit PIN',
+      loginBtn: 'Sign in',
+      scanQr: 'Scan QR',
+      scanNfc: 'Scan NFC',
+      nfcListening: 'NFC ready (tap tag)...',
+      nfcUnsupported: 'Web NFC is not supported by this browser.',
+      quickSelect: 'Quick select (PoC)',
+      identifiedAs: 'Identified as',
+      changeUser: 'Change',
+      logout: 'Sign out',
+      switchUser: 'Switch user',
+      loggedAs: 'Logged in as {name}',
+      loginSuccess: 'Welcome, {name}!',
+      loginFailed: 'Invalid username or wrong PIN.',
+      recordedBy: 'Recorded by',
+      kioskMode: 'Kiosk mode: Automatically sign out after successful transfer',
+      userManagement: 'User Management & Terminal'
     },
     integrations: {
       elabftwDesc: 'Electronic lab notebook',
@@ -1223,6 +1461,24 @@ createApp({
     const submitMode = ref('');
     const aiDraft = ref(null);
     const editingAiField = ref(null);
+
+    // Multi-User Terminal & Authentifizierung
+    const currentUser = ref(load('metafold_current_user', null));
+    const showLoginModal = ref(!currentUser.value);
+    const showUserMenuModal = ref(false);
+    const loginStep = ref(1); // 1 = identifier, 2 = PIN
+    const loginIdentifier = ref('');
+    const loginPin = ref('');
+    const isLoggingIn = ref(false);
+    const loginError = ref('');
+    const isNfcListening = ref(false);
+    const autoLogoutAfterSend = ref(load('metafold_autologout', false));
+    watch(autoLogoutAfterSend, v => localStorage.setItem('metafold_autologout', JSON.stringify(v)));
+    const loginInputRef = ref(null);
+    const demoUsers = [
+      { id: 'tzobel', name: 'Dr. Thomas Zobel', badge_id: 'USER001', pin: '1234' },
+      { id: 'mmustermann', name: 'Max Mustermann', badge_id: 'USER002', pin: '0000' }
+    ];
 
     // Einstellungen / Bibliothek
     const showSettings = ref(false);
@@ -1642,6 +1898,7 @@ createApp({
     const scanning = ref(false);
     const scanVideo = ref(null);
     let scanKey = null, scanStream = null, scanRaf = 0;
+    let scanMode = 'field'; // 'field' oder 'auth'
     const stopScan = () => {
       cancelAnimationFrame(scanRaf);
       scanStream?.getTracks().forEach(t => t.stop());
@@ -1652,9 +1909,9 @@ createApp({
       if (f?.type === 'tags') addTags(scanKey, val.replace(/,/g, ' ')); else formData.value[scanKey] = val;
       navigator.vibrate?.(60);
     };
-    const openScan = async (key) => {
-      if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) { alert(tr('Kamera erfordert HTTPS und Browser-Unterstützung.')); return; }
-      scanKey = key; scanning.value = true;
+    const openScan = async (key, mode = 'field') => {
+      if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) { alert(tr('scanner.cameraHttps') || 'Kamera erfordert HTTPS und Browser-Unterstützung.'); return; }
+      scanKey = key; scanMode = mode; scanning.value = true;
       try {
         scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
         await nextTick();
@@ -1678,13 +1935,150 @@ createApp({
                 const img = cx.getImageData(0, 0, cv.width, cv.height);
                 val = jsQR(img.data, img.width, img.height)?.data || '';
               }
-              if (val) { applyScan(val); stopScan(); return; }
+              if (val) {
+                navigator.vibrate?.(60);
+                if (scanMode === 'auth') {
+                  loginIdentifier.value = val;
+                  stopScan();
+                  proceedToPin();
+                } else {
+                  applyScan(val);
+                  stopScan();
+                }
+                return;
+              }
             } catch (_) { /* nächster Frame */ }
           }
           scanRaf = requestAnimationFrame(tick);
         };
         scanRaf = requestAnimationFrame(tick);
-      } catch (e) { stopScan(); alert(tr('Kamera nicht verfügbar') + ': ' + e.message); }
+      } catch (e) { stopScan(); alert(tr('scanner.cameraUnavailable') + ': ' + e.message); }
+    };
+
+    const startLoginQrScan = () => {
+      openScan('__auth_login', 'auth');
+    };
+
+    const startWebNfcScan = async () => {
+      if (!('NDEFReader' in window)) {
+        flash(tr('auth.nfcUnsupported'), false);
+        return;
+      }
+      try {
+        const ndef = new window.NDEFReader();
+        await ndef.scan();
+        isNfcListening.value = true;
+        flash(tr('auth.nfcListening'), true);
+        ndef.onreading = (event) => {
+          isNfcListening.value = false;
+          let text = '';
+          if (event.message?.records) {
+            for (const record of event.message.records) {
+              if (record.recordType === 'text') {
+                const textDecoder = new TextDecoder(record.encoding || 'utf-8');
+                text = textDecoder.decode(record.data);
+              }
+            }
+          }
+          const val = text || event.serialNumber || '';
+          if (val) {
+            navigator.vibrate?.([50, 50, 50]);
+            loginIdentifier.value = val;
+            proceedToPin();
+          }
+        };
+        ndef.onreadingerror = () => {
+          flash('NFC Lesefehler – bitte erneut versuchen.', false);
+        };
+      } catch (err) {
+        isNfcListening.value = false;
+        flash('NFC: ' + err.message, false);
+      }
+    };
+
+    const selectDemoUser = (u) => {
+      loginIdentifier.value = u.id;
+      proceedToPin();
+    };
+
+    const proceedToPin = () => {
+      if (!loginIdentifier.value.trim()) return;
+      loginStep.value = 2;
+      loginPin.value = '';
+      loginError.value = '';
+    };
+
+    const pressPinDigit = (d) => {
+      if (loginPin.value.length < 6) {
+        loginPin.value += String(d);
+        if (loginPin.value.length === 4) {
+          submitLogin();
+        }
+      }
+    };
+
+    const openLogin = () => {
+      loginStep.value = 1;
+      loginIdentifier.value = '';
+      loginPin.value = '';
+      loginError.value = '';
+      showLoginModal.value = true;
+      nextTick(() => {
+        loginInputRef.value?.focus();
+      });
+    };
+
+    const submitLogin = async () => {
+      if (!loginIdentifier.value.trim() || !loginPin.value) return;
+      if (!config.value.n8nWebhookUrl) {
+        loginError.value = tr('settings.n8nMissing');
+        return;
+      }
+      isLoggingIn.value = true;
+      loginError.value = '';
+      try {
+        const res = await fetch(config.value.n8nWebhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'login',
+            identifier: loginIdentifier.value.trim(),
+            pin: loginPin.value.trim()
+          })
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json().catch(() => null);
+        if (data && (data.status === 'success' || data.authenticated === true)) {
+          currentUser.value = {
+            id: data.user?.id || loginIdentifier.value.trim(),
+            name: data.user?.name || loginIdentifier.value.trim(),
+            badge_id: data.user?.badge_id || '',
+            pin: loginPin.value.trim()
+          };
+          localStorage.setItem('metafold_current_user', JSON.stringify(currentUser.value));
+          showLoginModal.value = false;
+          loginPin.value = '';
+          flash(tr('auth.loginSuccess', { name: currentUser.value.name }), true);
+        } else {
+          loginError.value = data?.message || tr('auth.loginFailed');
+          loginPin.value = '';
+        }
+      } catch (err) {
+        loginError.value = tr('Fehler beim Prüfen') + ': ' + err.message;
+      } finally {
+        isLoggingIn.value = false;
+      }
+    };
+
+    const logout = () => {
+      currentUser.value = null;
+      localStorage.removeItem('metafold_current_user');
+      showUserMenuModal.value = false;
+      openLogin();
+    };
+
+    const openUserMenu = () => {
+      showUserMenuModal.value = true;
     };
 
 
@@ -1875,6 +2269,10 @@ createApp({
 
     // An n8n senden (mode: 'direct' oder 'ai_assistant')
     const sendPayload = async (mode = 'direct') => {
+      if (!currentUser.value) {
+        openLogin();
+        return;
+      }
       if (!config.value.n8nWebhookUrl) {
         alert(tr('Bitte trage in den Einstellungen (⚙️) eine n8n Webhook URL ein.'));
         openSettings();
@@ -1886,6 +2284,14 @@ createApp({
         const payload = {
           action: mode,
           timestamp: new Date().toISOString(),
+          auth: {
+            userId: currentUser.value.id,
+            pin: currentUser.value.pin
+          },
+          user: {
+            id: currentUser.value.id,
+            name: currentUser.value.name
+          },
           template: {
             id: currentTemplate.value.id,
             name: currentTemplate.value.name,
@@ -1928,6 +2334,12 @@ createApp({
           editingAiField.value = null;
         } else {
           sent.value = true;
+          if (autoLogoutAfterSend.value) {
+            setTimeout(() => {
+              logout();
+              resetWizard();
+            }, 2500);
+          }
         }
       } catch (err) {
         sendError.value = tr('Fehler beim Senden') + ': ' + err.message;
@@ -1935,6 +2347,10 @@ createApp({
     };
 
     const approveAiDraft = async () => {
+      if (!currentUser.value) {
+        openLogin();
+        return;
+      }
       if (!config.value.n8nWebhookUrl) return;
       isSubmitting.value = true; sendError.value = '';
       try {
@@ -1944,6 +2360,14 @@ createApp({
         const payload = {
           action: 'approve_and_create',
           timestamp: new Date().toISOString(),
+          auth: {
+            userId: currentUser.value.id,
+            pin: currentUser.value.pin
+          },
+          user: {
+            id: currentUser.value.id,
+            name: currentUser.value.name
+          },
           template: {
             id: currentTemplate.value.id,
             name: currentTemplate.value.name,
@@ -1970,6 +2394,12 @@ createApp({
         aiDraft.value = null;
         editingAiField.value = null;
         sent.value = true;
+        if (autoLogoutAfterSend.value) {
+          setTimeout(() => {
+            logout();
+            resetWizard();
+          }, 2500);
+        }
       } catch (err) {
         sendError.value = tr('Fehler beim Senden') + ': ' + err.message;
       } finally { isSubmitting.value = false; }
@@ -1998,7 +2428,11 @@ createApp({
       showLibraryModal, librarySearch, selectedLibraryPaths, isAddingLibrary, filteredLibrary,
       openLibraryModal, selectAllUnsaved, addSelectedFromLibrary,
       lang, t, tr, INTEGRATIONS, enabledIntegrations, activeIntegrations, integrationChoice, integrationOn,
-      tagDraft, onTagInput, commitTag, removeTag, setRating, toggleMulti, scanable, scanning, scanVideo, openScan, stopScan
+      tagDraft, onTagInput, commitTag, removeTag, setRating, toggleMulti, scanable, scanning, scanVideo, openScan, stopScan,
+      // Multi-User & Auth
+      currentUser, showLoginModal, showUserMenuModal, loginStep, loginIdentifier, loginPin, isLoggingIn, loginError,
+      isNfcListening, autoLogoutAfterSend, loginInputRef, demoUsers, openLogin, proceedToPin, pressPinDigit, submitLogin,
+      logout, openUserMenu, selectDemoUser, startLoginQrScan, startWebNfcScan
     };
   }
 }).mount('#app');
