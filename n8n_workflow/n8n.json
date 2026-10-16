@@ -5,7 +5,24 @@
         "httpMethod": "POST",
         "path": "metafold-test",
         "responseMode": "responseNode",
-        "options": {}
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization, X-Requested-With, Accept"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, GET, OPTIONS"
+              }
+            ]
+          }
+        }
       },
       "id": "31f0f95d-02fa-4227-b505-4567b9eedbf0",
       "name": "Webhook In",
@@ -19,7 +36,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || {};\nconst action = body.action || 'direct';\n\n// =========================================================================\n// 👥 BENUTZER-TABELLE (Proof of Principle)\n// Hier können Benutzer, PINs, NFC/QR-IDs und API-Keys direkt gepflegt werden:\n// =========================================================================\nconst USERS_DB = [\n  {\n    id: 'tzobel',\n    name: 'Dr. Thomas Zobel',\n    badge_id: 'USER001',                   // NFC-UID, QR-Code-Inhalt oder Scanner-Code\n    pin: '1234',                          // 4-stellige PIN\n    elab_api_key: 'DEIN_ELABFTW_API_KEY', // eLabFTW API Key dieses Benutzers\n    elab_host: 'https://elab.uni-muenster.de',\n    unigpt_api_key: ''                    // Optional: falls eigener uniGPT Key\n  },\n  {\n    id: 'mmustermann',\n    name: 'Max Mustermann',\n    badge_id: 'USER002',\n    pin: '0000',\n    elab_api_key: 'MAX_ELABFTW_API_KEY',\n    elab_host: 'https://elab.uni-muenster.de',\n    unigpt_api_key: ''\n  },\n  {\n    id: 'lab_guest',\n    name: 'Gastforscher / Praktikant',\n    badge_id: 'GUEST01',\n    pin: '9999',\n    elab_api_key: 'GUEST_ELABFTW_API_KEY',\n    elab_host: 'https://elab.uni-muenster.de',\n    unigpt_api_key: ''\n  }\n];\n\n// Helper: Suche User nach ID, Badge oder Name (Groß-/Kleinschreibung tolerant)\nfunction findUser(query) {\n  if (!query) return null;\n  const q = String(query).trim().toLowerCase();\n  return USERS_DB.find(u => \n    u.id.toLowerCase() === q || \n    (u.badge_id && u.badge_id.toLowerCase() === q) || \n    u.name.toLowerCase() === q\n  ) || null;\n}\n\n// 1. FALL: Login-Anfrage aus der PWA (NFC / QR / Tastatur + PIN)\nif (action === 'login') {\n  const identifier = body.identifier || body.username || body.badge_id || '';\n  const pin = String(body.pin || '').trim();\n  const user = findUser(identifier);\n\n  if (!user) {\n    return {\n      json: {\n        is_login: true,\n        status: 'error',\n        authenticated: false,\n        message: `Benutzer „${identifier}“ nicht in der n8n-Tabelle gefunden.`\n      }\n    };\n  }\n\n  if (user.pin !== pin) {\n    return {\n      json: {\n        is_login: true,\n        status: 'error',\n        authenticated: false,\n        message: 'Falsche PIN. Bitte erneut versuchen.'\n      }\n    };\n  }\n\n  // Erfolgreich authentifiziert!\n  return {\n    json: {\n      is_login: true,\n      status: 'success',\n      authenticated: true,\n      message: `Willkommen, ${user.name}! Authentifizierung erfolgreich.`,\n      user: {\n        id: user.id,\n        name: user.name,\n        badge_id: user.badge_id\n      }\n    }\n  };\n}\n\n// 2. FALL: Reguläre Aktion (direct, ai_assistant, approve_and_create)\nconst auth = body.auth || {};\nconst authId = auth.userId || auth.username || auth.badge_id || body.userId;\nconst authPin = String(auth.pin || '').trim();\nconst user = findUser(authId);\n\nif (!user || user.pin !== authPin) {\n  return {\n    json: {\n      is_auth_error: true,\n      status: 'error',\n      authenticated: false,\n      message: 'Authentifizierung fehlgeschlagen: Bitte an der Terminal-Station anmelden.'\n    }\n  };\n}\n\n// Gültiger Benutzer: Seine API Keys in den n8n-Workflow einbetten!\nreturn {\n  json: {\n    is_login: false,\n    is_auth_error: false,\n    ...body,\n    user: {\n      id: user.id,\n      name: user.name,\n      badge_id: user.badge_id\n    },\n    elab_api_key: user.elab_api_key || '',\n    elab_host: user.elab_host || 'https://elab.uni-muenster.de',\n    unigpt_api_key: user.unigpt_api_key || ''\n  }\n};"
+        "jsCode": "const rawInput = $input.first().json;\nlet rawBody = rawInput.body !== undefined ? rawInput.body : rawInput;\nlet body = {};\nif (typeof rawBody === 'string') {\n  try { body = JSON.parse(rawBody); } catch (e) { body = {}; }\n} else if (typeof rawBody === 'object' && rawBody !== null) {\n  body = rawBody;\n}\nconst action = body.action || 'direct';\n\n// Ping / Verbindungstest aus PWA-Einstellungen\nif (action === 'ping' || action === 'test') {\n  return {\n    json: {\n      is_login: true,\n      status: 'success',\n      message: '✓ Verbindung zu n8n erfolgreich! Webhook ist aktiv und antwortet.'\n    }\n  };\n}\n\n// =========================================================================\n// 👥 BENUTZER-TABELLE (Proof of Principle)\n// Hier können Benutzer, PINs, NFC/QR-IDs und API-Keys direkt gepflegt werden:\n// =========================================================================\nconst USERS_DB = [\n  {\n    id: 'tzobel',\n    name: 'Dr. Thomas Zobel',\n    badge_id: 'USER001',                   // NFC-UID oder QR-Code (z.B. USER001)\n    pin: '1234',                          // 4-stellige PIN\n    elab_api_key: 'DEIN_ELABFTW_API_KEY', // eLabFTW API Key dieses Benutzers\n    elab_host: 'https://elab.uni-muenster.de',\n    unigpt_api_key: ''                    // Optional: falls eigener uniGPT Key\n  },\n  {\n    id: 'mmustermann',\n    name: 'Max Mustermann',\n    badge_id: 'USER002',\n    pin: '0000',\n    elab_api_key: 'MAX_ELABFTW_API_KEY',\n    elab_host: 'https://elab.uni-muenster.de',\n    unigpt_api_key: ''\n  },\n  {\n    id: 'lab_guest',\n    name: 'Gastforscher / Praktikant',\n    badge_id: 'GUEST01',\n    pin: '9999',\n    elab_api_key: 'GUEST_ELABFTW_API_KEY',\n    elab_host: 'https://elab.uni-muenster.de',\n    unigpt_api_key: ''\n  }\n];\n\n// Helper: Suche User STRENG nach physischer Badge-ID (NFC/QR)\nfunction findUserByBadge(badgeQuery) {\n  if (!badgeQuery) return null;\n  const q = String(badgeQuery).trim().toLowerCase();\n  return USERS_DB.find(u => u.badge_id && u.badge_id.toLowerCase() === q) || null;\n}\n\n// 1. FALL: Login-Anfrage aus der PWA (Zwingend NFC-Tag / QR-Code + PIN)\nif (action === 'login') {\n  const badgeId = body.identifier || body.badge_id || '';\n  const pin = String(body.pin || '').trim();\n  const user = findUserByBadge(badgeId);\n\n  if (!user) {\n    return {\n      json: {\n        is_login: true,\n        status: 'error',\n        authenticated: false,\n        message: `NFC/QR-Ausweis „${badgeId}“ nicht registriert. Bitte physischen NFC-Chip oder QR-Code scannen.`\n      }\n    };\n  }\n\n  if (user.pin !== pin) {\n    return {\n      json: {\n        is_login: true,\n        status: 'error',\n        authenticated: false,\n        message: 'Falsche PIN. Bitte erneut versuchen.'\n      }\n    };\n  }\n\n  // Erfolgreich authentifiziert!\n  return {\n    json: {\n      is_login: true,\n      status: 'success',\n      authenticated: true,\n      message: `Willkommen, ${user.name}! Authentifizierung erfolgreich.`,\n      user: {\n        id: user.id,\n        name: user.name,\n        badge_id: user.badge_id\n      }\n    }\n  };\n}\n\n// 2. FALL: Reguläre Aktion (direct, ai_assistant, approve_and_create)\nconst auth = body.auth || {};\nconst authId = auth.userId || body.userId;\nconst authBadge = auth.badge_id;\nconst authPin = String(auth.pin || '').trim();\nconst user = USERS_DB.find(u => \n  (authBadge && u.badge_id && u.badge_id.toLowerCase() === String(authBadge).toLowerCase()) ||\n  (authId && u.id.toLowerCase() === String(authId).toLowerCase())\n);\n\nif (!user || user.pin !== authPin) {\n  return {\n    json: {\n      is_auth_error: true,\n      status: 'error',\n      authenticated: false,\n      message: 'Authentifizierung fehlgeschlagen: Bitte per NFC/QR-Ausweis am Terminal anmelden.'\n    }\n  };\n}\n\n// Gültiger Benutzer: Seine API Keys in den n8n-Workflow einbetten!\nreturn {\n  json: {\n    is_login: false,\n    is_auth_error: false,\n    ...body,\n    user: {\n      id: user.id,\n      name: user.name,\n      badge_id: user.badge_id\n    },\n    elab_api_key: user.elab_api_key || '',\n    elab_host: user.elab_host || 'https://elab.uni-muenster.de',\n    unigpt_api_key: user.unigpt_api_key || ''\n  }\n};"
       },
       "id": "e1a2b3c4-auth-4000-8000-000000000001",
       "name": "User Auth & Lookup",
@@ -55,7 +72,23 @@
     {
       "parameters": {
         "options": {
-          "responseCode": 200
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization, X-Requested-With, Accept"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, GET, OPTIONS"
+              }
+            ]
+          }
         }
       },
       "id": "respond-login-auth",
@@ -149,7 +182,23 @@
     {
       "parameters": {
         "options": {
-          "responseCode": 200
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization, X-Requested-With, Accept"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, GET, OPTIONS"
+              }
+            ]
+          }
         }
       },
       "id": "2b3fc22d-1435-4096-af5c-ee2eb6d62c0a",
@@ -329,7 +378,23 @@
     {
       "parameters": {
         "options": {
-          "responseCode": 200
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization, X-Requested-With, Accept"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, GET, OPTIONS"
+              }
+            ]
+          }
         }
       },
       "id": "1c488290-fed0-44ad-9677-b2367bb18ffc",

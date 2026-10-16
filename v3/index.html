@@ -489,7 +489,7 @@
   </div>
 
   <!-- Einstellungen -->
-  <div v-if="showSettings" class="fixed inset-0 z-40 bg-slate-100 overflow-y-auto">
+  <div v-if="showSettings" class="fixed inset-0 z-[70] bg-slate-100 overflow-y-auto">
     <div class="max-w-xl mx-auto p-4 space-y-4 pb-12">
       <div class="flex items-center justify-between">
         <h2 class="text-lg font-bold">{{ tr('settings.title') }}</h2>
@@ -620,9 +620,46 @@
         </div>
       </section>
 
-      <section class="card space-y-2">
-        <h3 class="font-bold text-sm">🔗 n8n Webhook (Metadaten-Übertragung)</h3>
-        <input v-model="config.n8nWebhookUrl" type="url" class="inp" placeholder="https://n8n.your-lab.de/webhook/...">
+      <section class="card space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="font-bold text-sm">🔗 n8n Webhook (Metadaten-Übertragung)</h3>
+          <span v-if="config.n8nWebhookUrl" class="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-full">Konfiguriert</span>
+          <span v-else class="text-[10px] bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded-full">Erforderlich</span>
+        </div>
+        <p class="text-xs text-slate-500">
+          Zentraler Webhook-Endpunkt für Benutzer-Authentifizierung (NFC/PIN) und eLabFTW-Übertragung.
+        </p>
+        <input v-model="config.n8nWebhookUrl" type="url" class="inp text-xs font-mono" placeholder="https://n8n.your-lab.de/webhook/metafold-test">
+
+        <div class="flex items-center gap-2 pt-1">
+          <button type="button" @click="testN8nConnection" :disabled="isTestingN8n || !config.n8nWebhookUrl" class="btn flex-1 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white text-xs py-2.5 font-semibold flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition">
+            <span v-if="isTestingN8n" class="inline-block animate-spin">⏳</span>
+            <span v-else>🔌</span>
+            <span>{{ isTestingN8n ? 'Prüfe Verbindung...' : 'Verbindung testen' }}</span>
+          </button>
+        </div>
+
+        <!-- Feedback Verbindungstest -->
+        <div v-if="n8nTestStatus" :class="n8nTestStatus.ok ? 'bg-emerald-50 border-emerald-300 text-emerald-900' : 'bg-rose-50 border-rose-300 text-rose-900'" class="p-3 border rounded-xl text-xs space-y-1 animate-in fade-in">
+          <div class="font-bold flex items-center gap-1.5">
+            <span>{{ n8nTestStatus.ok ? '✅' : '❌' }}</span>
+            <span>{{ n8nTestStatus.message }}</span>
+          </div>
+          <p v-if="n8nTestStatus.details" class="text-[11px] whitespace-pre-line leading-relaxed opacity-90">
+            {{ n8nTestStatus.details }}
+          </p>
+        </div>
+
+        <!-- Hinweis: Test- vs. Production-URL -->
+        <details class="text-[11px] text-slate-500 pt-1">
+          <summary class="cursor-pointer text-slate-400 hover:text-blue-600 hover:underline">💡 Wichtig: Test- vs. Produktiv-URL in n8n</summary>
+          <div class="mt-2 p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 text-[11px] text-slate-600">
+            <p><b>1. Test-URL</b> (<code>.../webhook-test/metafold-test</code>):</p>
+            <p class="text-slate-500 pl-2">Funktioniert nur, wenn in n8n gerade auf <i>"Test step"</i> oder <i>"Execute workflow"</i> geklickt wurde.</p>
+            <p><b>2. Produktions-URL</b> (<code>.../webhook/metafold-test</code>):</p>
+            <p class="text-slate-500 pl-2">Funktioniert dauerhaft im Hintergrund. <b>Wichtig:</b> Der Workflow in n8n muss oben rechts auf <b>"Active"</b> geschaltet sein!</p>
+          </div>
+        </details>
       </section>
 
       <section class="card space-y-2 bg-gradient-to-br from-white to-blue-50/50">
@@ -681,54 +718,75 @@
   </div>
 
   <!-- Modal: Login / Terminal Authentifizierung (NFC / QR / PIN) -->
-  <div v-if="showLoginModal || !currentUser" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+  <div v-if="(showLoginModal || !currentUser) && !showSettings" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
     <div class="bg-white rounded-3xl max-w-sm w-full p-5 sm:p-6 shadow-2xl border border-slate-200 text-center space-y-4 my-auto animate-in fade-in zoom-in-95 duration-150">
+      
+      <!-- Obere Leiste: Schnelleinstieg in Einstellungen (immer erreichbar!) -->
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+          <span>🏢</span> MetaFold Terminal
+        </span>
+        <button type="button" @click="openSettings" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1 active:scale-95 transition" title="Einstellungen öffnen">
+          <span>⚙️</span>
+          <span>{{ tr('common.settings') }}</span>
+        </button>
+      </div>
+
+      <!-- Warnung & Einrichtungs-Hinweis, falls n8n Webhook noch nicht konfiguriert ist -->
+      <div v-if="!config.n8nWebhookUrl" class="p-3.5 bg-amber-50 border border-amber-300 rounded-2xl text-left space-y-2">
+        <div class="flex items-center gap-2 text-amber-900 font-bold text-xs">
+          <span>⚠️</span>
+          <span>n8n Webhook noch nicht eingerichtet</span>
+        </div>
+        <p class="text-[11px] text-amber-800 leading-relaxed">
+          Vor der ersten Anmeldung muss die n8n Webhook-URL hinterlegt werden, um Ausweise und PINs online zu prüfen.
+        </p>
+        <button type="button" @click="openSettings" class="btn w-full bg-amber-600 hover:bg-amber-700 text-white text-xs py-2 font-semibold shadow-sm">
+          ⚙️ Jetzt in Einstellungen eintragen
+        </button>
+      </div>
+
       <div>
         <div class="w-14 h-14 mx-auto rounded-2xl bg-blue-100 border border-blue-200 flex items-center justify-center text-3xl mb-2 shadow-sm">
           {{ loginStep === 1 ? '🪪' : '🔐' }}
         </div>
-        <h2 class="text-lg font-bold text-slate-900">{{ tr('auth.title') }}</h2>
+        <h2 class="text-lg font-bold text-slate-900">{{ loginStep === 1 ? 'Ausweis / Token scannen' : tr('auth.title') }}</h2>
         <p class="text-xs text-slate-500 mt-0.5">
-          {{ loginStep === 1 ? tr('auth.subtitle') : tr('auth.pinPrompt') }}
+          {{ loginStep === 1 ? 'NFC-Chip anhalten oder QR-Code scannen (Zebra-Scanner unterstützt)' : tr('auth.pinPrompt') }}
         </p>
       </div>
 
-      <!-- Schritt 1: Name / Chip / QR-Code -->
+      <!-- Schritt 1: Zwingend NFC oder QR-Code Scan (Keine manuelle Benutzerauswahl!) -->
       <div v-if="loginStep === 1" class="space-y-3 text-left">
-        <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">{{ tr('auth.identifyPrompt') }}</label>
+        <!-- Scan-Buttons: QR und Web NFC -->
+        <div class="grid grid-cols-2 gap-2 pt-1">
+          <button type="button" @click="startLoginQrScan" class="btn py-3 px-3 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 text-xs font-bold flex flex-col items-center justify-center gap-1 shadow-sm active:scale-95 transition">
+            <span class="text-xl">📷</span>
+            <span>QR scannen</span>
+          </button>
+          <button type="button" @click="startWebNfcScan" :class="isNfcListening ? 'bg-emerald-100 text-emerald-900 border-emerald-400 animate-pulse' : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-200'" class="btn py-3 px-3 text-xs font-bold border flex flex-col items-center justify-center gap-1 shadow-sm active:scale-95 transition">
+            <span class="text-xl">📶</span>
+            <span>{{ isNfcListening ? 'NFC aktiv (anhalten)...' : 'NFC scannen' }}</span>
+          </button>
+        </div>
+
+        <!-- Zebra Hardware-Scanner / Barcode / NFC Eingang -->
+        <div class="pt-2 border-t border-slate-100 space-y-1.5">
+          <div class="flex items-center justify-between">
+            <label class="block text-xs font-semibold text-slate-700">Hardware-Scanner (Zebra / Barcode / NFC)</label>
+            <span class="text-[10px] text-blue-600 font-medium">Auto-Fokus</span>
+          </div>
           <div class="relative">
             <input ref="loginInputRef" v-model="loginIdentifier" type="text"
-              enterkeyhint="next"
+              enterkeyhint="done"
               @keydown.enter.prevent="proceedToPin"
-              placeholder="Name oder NFC/QR scannen..."
-              class="inp pr-10 text-sm font-medium">
+              placeholder="Barcode / NFC Token scannen..."
+              class="inp pr-10 text-xs font-mono tracking-wider bg-slate-50 border-slate-300 focus:border-blue-500">
             <button v-if="loginIdentifier" @click="loginIdentifier = ''" type="button" class="absolute right-2.5 top-2.5 w-6 h-6 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600">✕</button>
           </div>
-          <p class="text-[11px] text-slate-400 mt-1">
-            💡 {{ tr('auth.identifyHint') }}
+          <p class="text-[11px] text-slate-400">
+            💡 Der integrierte Zebra DataWedge Scanner tippt den Chip-Code automatisch ein und springt direkt zur PIN.
           </p>
-        </div>
-
-        <div class="grid grid-cols-2 gap-2 pt-1">
-          <button type="button" @click="startLoginQrScan" class="btn py-2.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold border border-slate-300 flex items-center justify-center gap-1.5">
-            <span>📷</span>
-            <span>{{ tr('auth.scanQr') }}</span>
-          </button>
-          <button type="button" @click="startWebNfcScan" :class="isNfcListening ? 'bg-emerald-100 text-emerald-900 border-emerald-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'" class="btn py-2.5 px-3 text-xs font-semibold border flex items-center justify-center gap-1.5">
-            <span>📶</span>
-            <span>{{ isNfcListening ? tr('auth.nfcListening') : tr('auth.scanNfc') }}</span>
-          </button>
-        </div>
-
-        <!-- Schnellwahl für Test / PoC -->
-        <div class="pt-2 border-t border-slate-100">
-          <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">{{ tr('auth.quickSelect') }}</p>
-          <div class="flex flex-wrap gap-1.5">
-            <button v-for="u in demoUsers" :key="u.id" type="button" @click="selectDemoUser(u)" class="px-2.5 py-1 rounded-full bg-slate-100 hover:bg-blue-100 border border-slate-200 text-[11px] text-slate-700 font-medium active:scale-95 transition">
-              {{ u.name }}
-            </button>
-          </div>
         </div>
 
         <button type="button" @click="proceedToPin" :disabled="!loginIdentifier.trim()" class="btn w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-semibold shadow-sm mt-2">
@@ -738,13 +796,13 @@
 
       <!-- Schritt 2: PIN-Eingabe Pad -->
       <div v-else class="space-y-3">
-        <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-left">
+        <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-left">
           <div class="min-w-0 pr-2">
-            <p class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">{{ tr('auth.identifiedAs') }}</p>
-            <p class="text-sm font-bold text-slate-800 truncate">{{ loginIdentifier }}</p>
+            <p class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Ausweis erfasst</p>
+            <p class="text-xs font-mono font-bold text-slate-800 truncate">Token: {{ loginIdentifier }}</p>
           </div>
           <button type="button" @click="loginStep = 1; loginPin = ''; loginError = '';" class="text-xs text-blue-600 font-semibold hover:underline">
-            {{ tr('auth.changeUser') }}
+            Anderer Ausweis
           </button>
         </div>
 
@@ -753,7 +811,7 @@
           <div v-for="i in 4" :key="i" :class="loginPin.length >= i ? 'bg-blue-600 scale-110 shadow-sm' : 'bg-slate-200'" class="w-4 h-4 rounded-full transition-all duration-150"></div>
         </div>
 
-        <div v-if="loginError" class="p-2 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-medium animate-pulse">
+        <div v-if="loginError" class="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-medium text-left">
           ⚠️ {{ loginError }}
         </div>
 
@@ -1475,10 +1533,8 @@ createApp({
     const autoLogoutAfterSend = ref(load('metafold_autologout', false));
     watch(autoLogoutAfterSend, v => localStorage.setItem('metafold_autologout', JSON.stringify(v)));
     const loginInputRef = ref(null);
-    const demoUsers = [
-      { id: 'tzobel', name: 'Dr. Thomas Zobel', badge_id: 'USER001', pin: '1234' },
-      { id: 'mmustermann', name: 'Max Mustermann', badge_id: 'USER002', pin: '0000' }
-    ];
+    const n8nTestStatus = ref(null);
+    const isTestingN8n = ref(false);
 
     // Einstellungen / Bibliothek
     const showSettings = ref(false);
@@ -1996,9 +2052,67 @@ createApp({
       }
     };
 
-    const selectDemoUser = (u) => {
-      loginIdentifier.value = u.id;
-      proceedToPin();
+    const testN8nConnection = async () => {
+      if (!config.value.n8nWebhookUrl) {
+        n8nTestStatus.value = {
+          ok: false,
+          message: 'Keine URL angegeben',
+          details: 'Bitte trage zuerst eine gültige n8n Webhook-URL ein.'
+        };
+        return;
+      }
+      isTestingN8n.value = true;
+      n8nTestStatus.value = null;
+      const url = config.value.n8nWebhookUrl.trim();
+
+      // Vorab-Check auf Mixed Content (HTTPS -> HTTP)
+      if (window.location.protocol === 'https:' && url.startsWith('http:')) {
+        n8nTestStatus.value = {
+          ok: false,
+          message: 'Mixed-Content-Blockade (HTTPS -> HTTP)',
+          details: 'Die PWA läuft über eine sichere HTTPS-Verbindung. Browser blockieren unverschlüsselte HTTP-Verbindungen. Bitte binde n8n über HTTPS an (z. B. https://... oder über n8n Cloud / Reverse Proxy).'
+        };
+        isTestingN8n.value = false;
+        return;
+      }
+
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'ping', client: 'MetaFold PWA v3' })
+        });
+
+        if (!res.ok) {
+          n8nTestStatus.value = {
+            ok: false,
+            message: `HTTP-Fehler ${res.status}`,
+            details: res.status === 404
+              ? 'Webhook nicht gefunden (HTTP 404).\nPrüfe die URL und stelle sicher, dass der Workflow in n8n oben rechts auf „Active“ geschaltet ist (bei /webhook/...) bzw. im Test-Modus aktiv ist.'
+              : `n8n antwortete mit Fehlerstatus HTTP ${res.status}.`
+          };
+          return;
+        }
+
+        const data = await res.json().catch(() => null);
+        n8nTestStatus.value = {
+          ok: true,
+          message: data?.message || 'Verbindung zu n8n erfolgreich!',
+          details: 'Der Webhook ist erreichbar und antwortet mit korrekten CORS-Headern.'
+        };
+      } catch (err) {
+        const isFetchFail = err.message && (err.message.includes('Failed to fetch') || err.message.includes('NetworkError'));
+        n8nTestStatus.value = {
+          ok: false,
+          message: isFetchFail ? 'Verbindungsfehler (Failed to fetch)' : ('Fehler: ' + err.message),
+          details: 'Mögliche Ursachen:\n' +
+            '1. Ist der Workflow in n8n aktiv? (Oben rechts Schalter auf „Active“, falls /webhook/... genutzt wird; oder im Bearbeitungsmodus auf „Test step“ klicken, falls /webhook-test/... genutzt wird).\n' +
+            '2. Ist n8n über das Netzwerk/WLAN von diesem Mobilgerät erreichbar?\n' +
+            '3. Bei selbst gehostetem n8n: Verwende HTTPS oder prüfe CORS-Einstellungen.'
+        };
+      } finally {
+        isTestingN8n.value = false;
+      }
     };
 
     const proceedToPin = () => {
@@ -2031,13 +2145,21 @@ createApp({
     const submitLogin = async () => {
       if (!loginIdentifier.value.trim() || !loginPin.value) return;
       if (!config.value.n8nWebhookUrl) {
-        loginError.value = tr('settings.n8nMissing');
+        loginError.value = 'Bitte zuerst in den Einstellungen (⚙️) die n8n Webhook-URL eintragen.';
         return;
       }
       isLoggingIn.value = true;
       loginError.value = '';
+      const url = config.value.n8nWebhookUrl.trim();
+
+      if (window.location.protocol === 'https:' && url.startsWith('http:')) {
+        loginError.value = 'Mixed Content: HTTPS -> HTTP blockiert. Bitte n8n über HTTPS konfigurieren.';
+        isLoggingIn.value = false;
+        return;
+      }
+
       try {
-        const res = await fetch(config.value.n8nWebhookUrl, {
+        const res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -2046,25 +2168,36 @@ createApp({
             pin: loginPin.value.trim()
           })
         });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
+        if (!res.ok) {
+          if (res.status === 404) {
+            throw new Error('Webhook nicht gefunden (HTTP 404). Ist der Workflow in n8n aktiv?');
+          }
+          throw new Error('HTTP ' + res.status);
+        }
         const data = await res.json().catch(() => null);
         if (data && (data.status === 'success' || data.authenticated === true)) {
           currentUser.value = {
             id: data.user?.id || loginIdentifier.value.trim(),
             name: data.user?.name || loginIdentifier.value.trim(),
-            badge_id: data.user?.badge_id || '',
+            badge_id: data.user?.badge_id || loginIdentifier.value.trim(),
             pin: loginPin.value.trim()
           };
           localStorage.setItem('metafold_current_user', JSON.stringify(currentUser.value));
           showLoginModal.value = false;
           loginPin.value = '';
+          loginError.value = '';
           flash(tr('auth.loginSuccess', { name: currentUser.value.name }), true);
         } else {
           loginError.value = data?.message || tr('auth.loginFailed');
           loginPin.value = '';
         }
       } catch (err) {
-        loginError.value = tr('Fehler beim Prüfen') + ': ' + err.message;
+        let msg = err.message || '';
+        if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
+          msg = 'Verbindungsfehler (Failed to fetch). Prüfe in den Einstellungen (⚙️), ob n8n erreichbar und der Workflow aktiv ist.';
+        }
+        loginError.value = msg;
+        loginPin.value = '';
       } finally {
         isLoggingIn.value = false;
       }
@@ -2342,7 +2475,11 @@ createApp({
           }
         }
       } catch (err) {
-        sendError.value = tr('Fehler beim Senden') + ': ' + err.message;
+        let msg = err.message || '';
+        if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
+          msg = 'Verbindungsfehler (Failed to fetch). Bitte prüfe in den Einstellungen (⚙️), ob n8n erreichbar und der Workflow aktiv ist.';
+        }
+        sendError.value = tr('Fehler beim Senden') + ': ' + msg;
       } finally { isSubmitting.value = false; }
     };
 
@@ -2401,7 +2538,11 @@ createApp({
           }, 2500);
         }
       } catch (err) {
-        sendError.value = tr('Fehler beim Senden') + ': ' + err.message;
+        let msg = err.message || '';
+        if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
+          msg = 'Verbindungsfehler (Failed to fetch). Bitte prüfe in den Einstellungen (⚙️), ob n8n erreichbar und der Workflow aktiv ist.';
+        }
+        sendError.value = tr('Fehler beim Senden') + ': ' + msg;
       } finally { isSubmitting.value = false; }
     };
 
@@ -2431,8 +2572,10 @@ createApp({
       tagDraft, onTagInput, commitTag, removeTag, setRating, toggleMulti, scanable, scanning, scanVideo, openScan, stopScan,
       // Multi-User & Auth
       currentUser, showLoginModal, showUserMenuModal, loginStep, loginIdentifier, loginPin, isLoggingIn, loginError,
-      isNfcListening, autoLogoutAfterSend, loginInputRef, demoUsers, openLogin, proceedToPin, pressPinDigit, submitLogin,
-      logout, openUserMenu, selectDemoUser, startLoginQrScan, startWebNfcScan
+      isNfcListening, autoLogoutAfterSend, loginInputRef, openLogin, proceedToPin, pressPinDigit, submitLogin,
+      logout, openUserMenu, startLoginQrScan, startWebNfcScan,
+      // n8n Verbindungstest
+      n8nTestStatus, isTestingN8n, testN8nConnection
     };
   }
 }).mount('#app');
