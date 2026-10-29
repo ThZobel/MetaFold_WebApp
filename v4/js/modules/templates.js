@@ -499,89 +499,50 @@ export function createTemplates({ flash, tr, config, auth, resetWizard, selected
     isFetchingElabftw.value = true;
     elabftwError.value = '';
     try {
-      // 1. Try querying templates via n8n Webhook (uses credentials stored on server)
-      if (config.value?.n8nWebhookUrl) {
-        const payload = {
-          action: 'get_elabftw_templates',
-          client: 'MetaFold Mobile Terminal v4',
-          auth: auth?.currentUser?.value ? {
-            userId: auth.currentUser.value.id,
-            pin: auth.currentUser.value.pin,
-            badge_id: auth.currentUser.value.badge_id
-          } : {}
-        };
-
-        const res = await fetch(config.value.n8nWebhookUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          const list = Array.isArray(data.templates) ? data.templates 
-            : Array.isArray(data) ? data 
-            : (Array.isArray(data.items) ? data.items : null);
-
-          if (list && list.length > 0) {
-            elabftwTemplates.value = list;
-            return;
-          }
-        }
+      if (!config.value?.n8nWebhookUrl) {
+        throw new Error('Keine n8n Webhook-URL konfiguriert. Bitte in den Einstellungen unter „n8n Server“ eintragen.');
       }
 
-      // 2. Fallback sample templates if server is unreachable or offline
-      elabftwTemplates.value = [
-        {
-          id: 101,
-          title: 'Standard Mikroskopie Protokoll (eLabFTW)',
-          category: 'Microscopy',
-          description: 'Offizielle Institutsvorlage für Konfokalmikroskopie & Bildaufnahme',
-          metadata: {
-            extra_fields: {
-              'Mikroskop': { type: 'select', options: ['Zeiss LSM 980', 'Leica SP8', 'Olympus SpinSR'], required: true },
-              'Objektiv': { type: 'select', options: ['20x Luft', '40x Öl', '63x Öl Plan-Apo'], required: true },
-              'Laser-Wellenlänge': { type: 'text', description: 'z.B. 405nm, 488nm, 561nm', required: true },
-              'Fluorophore': { type: 'text', description: 'DAPI, GFP, mCherry etc.' },
-              'Immersionsöl': { type: 'checkbox', value: true },
-              'Proben-ID': { type: 'text', required: true }
-            }
-          }
-        },
-        {
-          id: 102,
-          title: 'Live-Cell Imaging (eLabFTW)',
-          category: 'Live Cell',
-          description: 'Langzeit-Messung mit Klimakammer & CO2-Kontrolle',
-          metadata: {
-            extra_fields: {
-              'Zelllinie': { type: 'text', required: true },
-              'Passage': { type: 'number', required: false },
-              'Temperatur (°C)': { type: 'number', value: 37, required: true },
-              'CO2 Gehalt (%)': { type: 'number', value: 5, required: true },
-              'Intervall (min)': { type: 'number', value: 10, required: true },
-              'Gesamtdauer (h)': { type: 'number', value: 24, required: true }
-            }
-          }
-        },
-        {
-          id: 103,
-          title: 'Antikörper Färbung & Immunfluoreszenz (eLabFTW)',
-          category: 'Histology',
-          description: 'Standard-Färbeprotokoll für Gewebeschnitte',
-          metadata: {
-            extra_fields: {
-              'Primärantikörper': { type: 'text', required: true },
-              'Verdünnung Primär': { type: 'text', value: '1:500' },
-              'Sekundärantikörper': { type: 'text', required: true },
-              'Verdünnung Sekundär': { type: 'text', value: '1:1000' },
-              'Inkubationszeit': { type: 'text', value: 'Overnight 4°C' }
-            }
-          }
+      const payload = {
+        action: 'get_elabftw_templates',
+        client: 'MetaFold Mobile Terminal v4',
+        auth: auth?.currentUser?.value ? {
+          userId: auth.currentUser.value.id,
+          pin: auth.currentUser.value.pin,
+          badge_id: auth.currentUser.value.badge_id
+        } : {}
+      };
+
+      const res = await fetch(config.value.n8nWebhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        throw new Error(`n8n Webhook antwortet mit HTTP ${res.status} (${res.statusText})`);
+      }
+
+      const data = await res.json();
+      if (data.status === 'error' || data.is_auth_error) {
+        throw new Error(data.message || 'Fehler beim Abrufen der Vorlagen von n8n/eLabFTW.');
+      }
+
+      const list = Array.isArray(data.templates) ? data.templates 
+        : Array.isArray(data) ? data 
+        : (Array.isArray(data.items) ? data.items : null);
+
+      if (list) {
+        elabftwTemplates.value = list;
+        if (list.length === 0) {
+          elabftwError.value = data.message || 'eLabFTW hat 0 Vorlagen zurückgegeben. Bitte prüfe in eLabFTW, ob dein Account bzw. Team Vorlagen unter „Experimente > Vorlagen“ besitzt.';
         }
-      ];
+      } else {
+        throw new Error(data.message || 'Ungültiges Antwortformat von n8n.');
+      }
     } catch (e) {
-      elabftwError.value = `${tr('common.error')}: ${e.message}`;
+      elabftwError.value = e.message;
+      elabftwTemplates.value = [];
     } finally {
       isFetchingElabftw.value = false;
     }
@@ -590,9 +551,8 @@ export function createTemplates({ flash, tr, config, auth, resetWizard, selected
   const openElabftwModal = async () => {
     showElabftwModal.value = true;
     selectedElabftwIds.value = [];
-    if (!elabftwTemplates.value.length) {
-      await fetchElabftwTemplates();
-    }
+    elabftwError.value = '';
+    await fetchElabftwTemplates();
   };
 
   const closeElabftwModal = () => {
