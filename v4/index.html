@@ -474,40 +474,41 @@
     </div>
   </div>
 
-  <!-- Einstellungen Modal (z-40) mit Sticky Collapsible Headers (Apple / Android Style) -->
-  <div v-if="showSettings" class="fixed inset-0 z-40 bg-slate-100 overflow-y-auto">
-    <div class="max-w-xl mx-auto p-4 space-y-3 pb-16">
-      
-      <!-- Sticky Top Bar -->
-      <div class="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md px-4 py-3 -mx-4 border-b border-slate-200/80 mb-3 shadow-xs">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <h2 class="text-base font-bold text-slate-900 flex items-center gap-1.5">
-              <span>⚙️</span>
-              <span>{{ tr('settings.title') }}</span>
-            </h2>
-            <!-- Schnellumschalter: Alle auf / Alle zu (Apple / Android Übersicht) -->
-            <div class="inline-flex rounded-lg bg-slate-200/70 p-0.5 text-[11px] font-semibold">
-              <button type="button" @click="expandAllSections" class="px-2 py-0.5 rounded text-slate-600 hover:text-slate-900 hover:bg-white transition" :title="tr('settings.expandAll')">
-                ▼ {{ tr('settings.expandAll') }}
-              </button>
-              <button type="button" @click="collapseAllSections" class="px-2 py-0.5 rounded text-slate-600 hover:text-slate-900 hover:bg-white transition" :title="tr('settings.collapseAll')">
-                ▲ {{ tr('settings.collapseAll') }}
-              </button>
-            </div>
+  <!-- Einstellungen Modal (z-40) -->
+  <div v-if="showSettings" class="fixed inset-0 z-40 bg-slate-100 overflow-y-auto flex flex-col">
+    <!-- Sticky Top Bar (Immer oben fixiert, ohne Rand-Hacks) -->
+    <header class="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-4 py-3 shrink-0 shadow-xs">
+      <div class="max-w-xl mx-auto flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <h2 class="text-base font-bold text-slate-900 flex items-center gap-1.5">
+            <span>⚙️</span>
+            <span>{{ tr('settings.title') }}</span>
+          </h2>
+          <!-- Schnellumschalter: Alle auf / Alle zu (Apple / Android Übersicht) -->
+          <div class="inline-flex rounded-lg bg-slate-100 border border-slate-200 p-0.5 text-[11px] font-semibold">
+            <button type="button" @click="expandAllSections" class="px-2 py-0.5 rounded text-slate-600 hover:text-slate-900 hover:bg-white transition" :title="tr('settings.expandAll')">
+              ▼ {{ tr('settings.expandAll') }}
+            </button>
+            <button type="button" @click="collapseAllSections" class="px-2 py-0.5 rounded text-slate-600 hover:text-slate-900 hover:bg-white transition" :title="tr('settings.collapseAll')">
+              ▲ {{ tr('settings.collapseAll') }}
+            </button>
           </div>
-          <button @click="closeSettings" type="button" class="px-3.5 py-1.5 bg-slate-900 text-white rounded-xl text-xs font-semibold hover:bg-slate-800 active:scale-95 transition shadow-sm">
-            ✓ {{ tr('common.done') }}
-          </button>
         </div>
+        <button @click="closeSettings" type="button" class="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold active:scale-95 transition shadow-sm">
+          ✓ {{ tr('common.done') }}
+        </button>
       </div>
+    </header>
+
+    <div class="max-w-xl w-full mx-auto p-4 space-y-3 pb-24">
 
       <!-- 1. Benutzerverwaltung & Terminal-Station -->
-      <section class="card p-0 overflow-hidden shadow-sm transition-all duration-200">
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden transition-all">
         <button type="button" @click="toggleSection('auth')" 
-          class="w-full text-left p-3.5 flex items-center justify-between gap-3 sticky top-[53px] z-10 bg-white/95 backdrop-blur-md border-b border-slate-100 active:bg-slate-50 transition cursor-pointer select-none">
-          <div class="flex items-center gap-2.5 min-w-0">
-            <span class="text-lg">👤</span>
+          :class="openSections.auth ? 'bg-slate-50/70 border-b border-slate-100' : 'bg-white hover:bg-slate-50/50'"
+          class="w-full text-left p-4 flex items-center justify-between gap-3 transition cursor-pointer select-none">
+          <div class="flex items-center gap-3 min-w-0">
+            <span class="text-xl">👤</span>
             <div class="min-w-0">
               <div class="text-sm font-bold text-slate-800 truncate">{{ tr('auth.userManagement') }}</div>
               <div class="text-[11px] text-slate-500 truncate" v-if="!openSections.auth">
@@ -516,14 +517,14 @@
             </div>
           </div>
           <div class="flex items-center gap-2 shrink-0">
-            <span v-if="currentUser" class="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">Angemeldet</span>
-            <span v-else class="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full">Nicht angemeldet</span>
+            <span v-if="currentUser" class="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full">Angemeldet</span>
+            <span v-else class="text-[10px] bg-amber-100 text-amber-800 font-bold px-2.5 py-0.5 rounded-full">Nicht angemeldet</span>
             <span class="text-xs text-slate-400 transition-transform duration-200 inline-block" :class="{'rotate-180': openSections.auth}">▼</span>
           </div>
         </button>
 
-        <div v-show="openSections.auth" class="p-4 space-y-3 bg-gradient-to-br from-white to-blue-50/20">
-          <div v-if="currentUser" class="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between gap-2 shadow-xs">
+        <div v-show="openSections.auth" class="p-4 space-y-3 bg-white">
+          <div v-if="currentUser" class="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between gap-2 shadow-xs">
             <div class="min-w-0 pr-2">
               <div class="text-sm font-bold text-slate-800 truncate">{{ currentUser.name }}</div>
               <div class="text-[11px] text-slate-500">ID: <code>{{ currentUser.id }}</code> {{ currentUser.badge_id ? '· Badge: ' + currentUser.badge_id : '' }}</div>
@@ -543,19 +544,20 @@
             </button>
           </div>
 
-          <label class="flex items-start gap-3 p-2 text-xs text-slate-600 cursor-pointer">
+          <label class="flex items-start gap-3 p-1.5 text-xs text-slate-600 cursor-pointer">
             <input type="checkbox" v-model="autoLogoutAfterSend" class="w-4 h-4 mt-0.5 rounded text-blue-600">
             <span>{{ tr('auth.kioskMode') }}</span>
           </label>
         </div>
-      </section>
+      </div>
 
       <!-- 2. Sprache -->
-      <section class="card p-0 overflow-hidden shadow-sm transition-all duration-200">
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden transition-all">
         <button type="button" @click="toggleSection('lang')" 
-          class="w-full text-left p-3.5 flex items-center justify-between gap-3 sticky top-[53px] z-10 bg-white/95 backdrop-blur-md border-b border-slate-100 active:bg-slate-50 transition cursor-pointer select-none">
-          <div class="flex items-center gap-2.5 min-w-0">
-            <span class="text-lg">🌐</span>
+          :class="openSections.lang ? 'bg-slate-50/70 border-b border-slate-100' : 'bg-white hover:bg-slate-50/50'"
+          class="w-full text-left p-4 flex items-center justify-between gap-3 transition cursor-pointer select-none">
+          <div class="flex items-center gap-3 min-w-0">
+            <span class="text-xl">🌐</span>
             <div class="min-w-0">
               <div class="text-sm font-bold text-slate-800 truncate">{{ tr('settings.language') }}</div>
               <div class="text-[11px] text-slate-500 truncate" v-if="!openSections.lang">
@@ -564,24 +566,30 @@
             </div>
           </div>
           <div class="flex items-center gap-2 shrink-0">
-            <span class="text-[10px] bg-slate-100 text-slate-700 font-semibold px-2 py-0.5 rounded-full uppercase">{{ lang }}</span>
+            <span class="text-[10px] bg-slate-100 text-slate-700 font-semibold px-2.5 py-0.5 rounded-full uppercase">{{ lang }}</span>
             <span class="text-xs text-slate-400 transition-transform duration-200 inline-block" :class="{'rotate-180': openSections.lang}">▼</span>
           </div>
         </button>
 
-        <div v-show="openSections.lang" class="p-4 space-y-2">
-          <div class="flex gap-2">
-            <button v-for="l in ['de','en']" :key="l" @click="lang=l" type="button" :class="lang===l ? 'bg-slate-900 text-white shadow-sm' : 'bg-slate-100 text-slate-700'" class="btn flex-1 py-2 text-xs font-semibold">{{ l==='de' ? 'Deutsch' : 'English' }}</button>
+        <div v-show="openSections.lang" class="p-4 bg-white">
+          <div class="grid grid-cols-2 gap-2.5">
+            <button type="button" @click="lang='de'" :class="lang==='de' ? 'bg-blue-600 text-white shadow-sm ring-2 ring-blue-500/20' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'" class="btn py-2.5 text-xs font-semibold transition">
+              🇩🇪 Deutsch
+            </button>
+            <button type="button" @click="lang='en'" :class="lang==='en' ? 'bg-blue-600 text-white shadow-sm ring-2 ring-blue-500/20' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'" class="btn py-2.5 text-xs font-semibold transition">
+              🇬🇧 English
+            </button>
           </div>
         </div>
-      </section>
+      </div>
 
       <!-- 3. Integrationen & dynamische Server-Module (OBERHALB des Template Hubs) -->
-      <section class="card p-0 overflow-hidden shadow-sm transition-all duration-200">
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden transition-all">
         <button type="button" @click="toggleSection('integrations')" 
-          class="w-full text-left p-3.5 flex items-center justify-between gap-3 sticky top-[53px] z-10 bg-white/95 backdrop-blur-md border-b border-slate-100 active:bg-slate-50 transition cursor-pointer select-none">
-          <div class="flex items-center gap-2.5 min-w-0">
-            <span class="text-lg">🔌</span>
+          :class="openSections.integrations ? 'bg-slate-50/70 border-b border-slate-100' : 'bg-white hover:bg-slate-50/50'"
+          class="w-full text-left p-4 flex items-center justify-between gap-3 transition cursor-pointer select-none">
+          <div class="flex items-center gap-3 min-w-0">
+            <span class="text-xl">🔌</span>
             <div class="min-w-0">
               <div class="text-sm font-bold text-slate-800 truncate">{{ tr('settings.integrations') }}</div>
               <div class="text-[11px] text-slate-500 truncate" v-if="!openSections.integrations">
@@ -590,12 +598,12 @@
             </div>
           </div>
           <div class="flex items-center gap-2 shrink-0">
-            <span class="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-full">{{ enabledIntegrations.length }} aktiv</span>
+            <span class="text-[10px] bg-blue-100 text-blue-800 font-bold px-2.5 py-0.5 rounded-full">{{ enabledIntegrations.length }} aktiv</span>
             <span class="text-xs text-slate-400 transition-transform duration-200 inline-block" :class="{'rotate-180': openSections.integrations}">▼</span>
           </div>
         </button>
 
-        <div v-show="openSections.integrations" class="p-4 space-y-3">
+        <div v-show="openSections.integrations" class="p-4 space-y-3 bg-white">
           <div class="flex items-center justify-between">
             <p class="text-xs text-slate-500">{{ tr('settings.integrationsDesc') }}</p>
             <button type="button" @click="discoverServerCapabilities" :disabled="isDiscovering || !config.n8nWebhookUrl" class="text-xs px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg font-semibold flex items-center gap-1 active:scale-95 transition shrink-0 ml-2" title="Server-Module abfragen">
@@ -629,14 +637,15 @@
             </label>
           </div>
         </div>
-      </section>
+      </div>
 
       <!-- 4. Vorlagen laden (Template Hub) -->
-      <section class="card p-0 overflow-hidden shadow-sm transition-all duration-200">
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden transition-all">
         <button type="button" @click="toggleSection('templateHub')" 
-          class="w-full text-left p-3.5 flex items-center justify-between gap-3 sticky top-[53px] z-10 bg-white/95 backdrop-blur-md border-b border-slate-100 active:bg-slate-50 transition cursor-pointer select-none">
-          <div class="flex items-center gap-2.5 min-w-0">
-            <span class="text-lg">📥</span>
+          :class="openSections.templateHub ? 'bg-slate-50/70 border-b border-slate-100' : 'bg-white hover:bg-slate-50/50'"
+          class="w-full text-left p-4 flex items-center justify-between gap-3 transition cursor-pointer select-none">
+          <div class="flex items-center gap-3 min-w-0">
+            <span class="text-xl">📥</span>
             <div class="min-w-0">
               <div class="text-sm font-bold text-slate-800 truncate">{{ tr('settings.templateHub') }}</div>
               <div class="text-[11px] text-slate-500 truncate" v-if="!openSections.templateHub">
@@ -645,12 +654,12 @@
             </div>
           </div>
           <div class="flex items-center gap-2 shrink-0">
-            <span class="text-[10px] bg-indigo-100 text-indigo-800 font-bold px-2 py-0.5 rounded-full">Hub</span>
+            <span class="text-[10px] bg-indigo-100 text-indigo-800 font-bold px-2.5 py-0.5 rounded-full">Hub</span>
             <span class="text-xs text-slate-400 transition-transform duration-200 inline-block" :class="{'rotate-180': openSections.templateHub}">▼</span>
           </div>
         </button>
 
-        <div v-show="openSections.templateHub" class="p-4 space-y-4">
+        <div v-show="openSections.templateHub" class="p-4 space-y-4 bg-white">
           <p class="text-xs text-slate-500">
             {{ tr('settings.templateHubDesc') }}
           </p>
@@ -716,14 +725,15 @@
             </label>
           </div>
         </div>
-      </section>
+      </div>
 
       <!-- 5. Gespeicherte Vorlagen -->
-      <section class="card p-0 overflow-hidden shadow-sm transition-all duration-200">
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden transition-all">
         <button type="button" @click="toggleSection('myTemplates')" 
-          class="w-full text-left p-3.5 flex items-center justify-between gap-3 sticky top-[53px] z-10 bg-white/95 backdrop-blur-md border-b border-slate-100 active:bg-slate-50 transition cursor-pointer select-none">
-          <div class="flex items-center gap-2.5 min-w-0">
-            <span class="text-lg">💾</span>
+          :class="openSections.myTemplates ? 'bg-slate-50/70 border-b border-slate-100' : 'bg-white hover:bg-slate-50/50'"
+          class="w-full text-left p-4 flex items-center justify-between gap-3 transition cursor-pointer select-none">
+          <div class="flex items-center gap-3 min-w-0">
+            <span class="text-xl">💾</span>
             <div class="min-w-0">
               <div class="text-sm font-bold text-slate-800 truncate">{{ tr('settings.myTemplates') }}</div>
               <div class="text-[11px] text-slate-500 truncate" v-if="!openSections.myTemplates">
@@ -732,12 +742,12 @@
             </div>
           </div>
           <div class="flex items-center gap-2 shrink-0">
-            <span class="text-[10px] bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded-full">{{ templates.length }}</span>
+            <span class="text-[10px] bg-slate-100 text-slate-700 font-bold px-2.5 py-0.5 rounded-full">{{ templates.length }}</span>
             <span class="text-xs text-slate-400 transition-transform duration-200 inline-block" :class="{'rotate-180': openSections.myTemplates}">▼</span>
           </div>
         </button>
 
-        <div v-show="openSections.myTemplates" class="p-4 space-y-2">
+        <div v-show="openSections.myTemplates" class="p-4 space-y-2 bg-white">
           <p v-if="!templates.length" class="text-xs text-slate-400 py-3 text-center">{{ tr('settings.noneSaved') }}</p>
           <div v-for="tpl in templates" :key="tpl.id" class="flex items-center justify-between gap-2 py-2.5 border-b border-slate-100 last:border-0">
             <div class="min-w-0 pr-1">
@@ -757,14 +767,15 @@
             </div>
           </div>
         </div>
-      </section>
+      </div>
 
-      <!-- 6. Standard-Kategorien (Desktop Mapping) - KORRIGIERTES MOBILE-LAYOUT -->
-      <section class="card p-0 overflow-hidden shadow-sm transition-all duration-200">
+      <!-- 6. Standard-Kategorien (Desktop Mapping) -->
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden transition-all">
         <button type="button" @click="toggleSection('categories')" 
-          class="w-full text-left p-3.5 flex items-center justify-between gap-3 sticky top-[53px] z-10 bg-white/95 backdrop-blur-md border-b border-slate-100 active:bg-slate-50 transition cursor-pointer select-none">
-          <div class="flex items-center gap-2.5 min-w-0">
-            <span class="text-lg">🏷️</span>
+          :class="openSections.categories ? 'bg-slate-50/70 border-b border-slate-100' : 'bg-white hover:bg-slate-50/50'"
+          class="w-full text-left p-4 flex items-center justify-between gap-3 transition cursor-pointer select-none">
+          <div class="flex items-center gap-3 min-w-0">
+            <span class="text-xl">🏷️</span>
             <div class="min-w-0">
               <div class="text-sm font-bold text-slate-800 truncate">{{ tr('settings.categoriesTitle') }}</div>
               <div class="text-[11px] text-slate-500 truncate" v-if="!openSections.categories">
@@ -773,17 +784,16 @@
             </div>
           </div>
           <div class="flex items-center gap-2 shrink-0">
-            <span class="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-full">Desktop</span>
+            <span class="text-[10px] bg-slate-100 text-slate-600 font-bold px-2.5 py-0.5 rounded-full">Desktop</span>
             <span class="text-xs text-slate-400 transition-transform duration-200 inline-block" :class="{'rotate-180': openSections.categories}">▼</span>
           </div>
         </button>
 
-        <div v-show="openSections.categories" class="p-4 space-y-3">
+        <div v-show="openSections.categories" class="p-4 space-y-3 bg-white">
           <p class="text-xs text-slate-500">
             {{ tr('settings.categoriesDesc') }}
           </p>
 
-          <!-- Saubere, responsive Mobil-Zeilen statt gedrängtem 2er-Grid -->
           <div class="space-y-2">
             <div class="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200 rounded-xl">
               <div class="min-w-0 pr-2">
@@ -818,14 +828,15 @@
             </div>
           </div>
         </div>
-      </section>
+      </div>
 
       <!-- 7. n8n Server & Webhooks -->
-      <section class="card p-0 overflow-hidden shadow-sm transition-all duration-200">
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden transition-all">
         <button type="button" @click="toggleSection('server')" 
-          class="w-full text-left p-3.5 flex items-center justify-between gap-3 sticky top-[53px] z-10 bg-white/95 backdrop-blur-md border-b border-slate-100 active:bg-slate-50 transition cursor-pointer select-none">
-          <div class="flex items-center gap-2.5 min-w-0">
-            <span class="text-lg">🔗</span>
+          :class="openSections.server ? 'bg-slate-50/70 border-b border-slate-100' : 'bg-white hover:bg-slate-50/50'"
+          class="w-full text-left p-4 flex items-center justify-between gap-3 transition cursor-pointer select-none">
+          <div class="flex items-center gap-3 min-w-0">
+            <span class="text-xl">🔗</span>
             <div class="min-w-0">
               <div class="text-sm font-bold text-slate-800 truncate">{{ tr('settings.n8nWebhook') }}</div>
               <div class="text-[11px] text-slate-500 truncate" v-if="!openSections.server">
@@ -834,13 +845,13 @@
             </div>
           </div>
           <div class="flex items-center gap-2 shrink-0">
-            <span v-if="config.n8nWebhookUrl" class="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-full">Aktiv</span>
-            <span v-else class="text-[10px] bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded-full">Erforderlich</span>
+            <span v-if="config.n8nWebhookUrl" class="text-[10px] bg-blue-100 text-blue-800 font-bold px-2.5 py-0.5 rounded-full">Aktiv</span>
+            <span v-else class="text-[10px] bg-rose-100 text-rose-800 font-bold px-2.5 py-0.5 rounded-full">Erforderlich</span>
             <span class="text-xs text-slate-400 transition-transform duration-200 inline-block" :class="{'rotate-180': openSections.server}">▼</span>
           </div>
         </button>
 
-        <div v-show="openSections.server" class="p-4 space-y-3.5">
+        <div v-show="openSections.server" class="p-4 space-y-3.5 bg-white">
           <p class="text-xs text-slate-500">
             Zentraler Webhook-Endpunkt für Benutzer-Authentifizierung (NFC/PIN), eLabFTW-Vorlagen und Metadaten-Übertragung.
           </p>
@@ -882,7 +893,7 @@
             <input v-model="config.whisperWebhookUrl" type="url" class="inp inp-sm font-mono text-xs" placeholder="https://n8n.your-lab.de/webhook/whisper">
           </div>
         </div>
-      </section>
+      </div>
 
       <!-- Fertig-Button unten -->
       <div class="pt-3 pb-6">
