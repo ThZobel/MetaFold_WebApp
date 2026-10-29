@@ -37,8 +37,27 @@ const app = createApp({
       whisperWebhookUrl: localStorage.getItem('metafold_whisper_url') || ''
     });
 
-    // 4. Modal Settings State
+    // 4. Modal Settings State & Collapsible Sticky Accordions (Apple / Android Style)
     const showSettings = ref(false);
+    const openSections = ref({
+      auth: true,
+      lang: true,
+      integrations: true,
+      templateHub: true,
+      myTemplates: true,
+      categories: true,
+      server: true
+    });
+    const toggleSection = (sec) => {
+      openSections.value[sec] = !openSections.value[sec];
+    };
+    const expandAllSections = () => {
+      Object.keys(openSections.value).forEach(k => { openSections.value[k] = true; });
+    };
+    const collapseAllSections = () => {
+      Object.keys(openSections.value).forEach(k => { openSections.value[k] = false; });
+    };
+
     const openSettings = () => {
       showSettings.value = true;
       if (templatesModule && !templatesModule.library.value.length) {
@@ -154,7 +173,7 @@ const app = createApp({
     // 6. Initialize Modules
     const authModule = createAuth({ config, flash, tr, openSettings });
     const integrationsModule = createIntegrations({ tr, flash });
-    const templatesModule = createTemplates({ flash, tr, config, resetWizard, selectedCategory, selectedTemplateId });
+    const templatesModule = createTemplates({ flash, tr, config, auth: authModule, resetWizard, selectedCategory, selectedTemplateId });
     const scannerModule = createScanner({
       tr,
       flash,
@@ -217,6 +236,7 @@ const app = createApp({
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         if (scannerModule.scanning.value) { scannerModule.stopScan(); return; }
+        if (templatesModule.showElabftwModal.value) { templatesModule.closeElabftwModal(); return; }
         if (templatesModule.showLibraryModal.value) { templatesModule.showLibraryModal.value = false; return; }
         if (templatesModule.renameModal.value.show) { templatesModule.closeRename(); return; }
         if (authModule.showUserMenuModal.value) { authModule.showUserMenuModal.value = false; return; }
@@ -237,6 +257,12 @@ const app = createApp({
       showSettings,
       openSettings,
       closeSettings,
+
+      // Settings Accordion Navigation (Apple / Android Style)
+      openSections,
+      toggleSection,
+      expandAllSections,
+      collapseAllSections,
 
       // Navigation & Wizard
       stepLabels,
@@ -324,6 +350,22 @@ const app = createApp({
       selectAllUnsaved: templatesModule.selectAllUnsaved,
       addSelectedFromLibrary: templatesModule.addSelectedFromLibrary,
       addFromLibrary: templatesModule.addFromLibrary,
+      // eLabFTW Templates
+      elabftwTemplates: templatesModule.elabftwTemplates,
+      isFetchingElabftw: templatesModule.isFetchingElabftw,
+      elabftwError: templatesModule.elabftwError,
+      showElabftwModal: templatesModule.showElabftwModal,
+      elabftwSearch: templatesModule.elabftwSearch,
+      filteredElabftw: templatesModule.filteredElabftw,
+      selectedElabftwIds: templatesModule.selectedElabftwIds,
+      isImportingElabftw: templatesModule.isImportingElabftw,
+      hasElabTemplate: templatesModule.hasElabTemplate,
+      fetchElabftwTemplates: templatesModule.fetchElabftwTemplates,
+      openElabftwModal: templatesModule.openElabftwModal,
+      closeElabftwModal: templatesModule.closeElabftwModal,
+      selectAllUnsavedElabftw: templatesModule.selectAllUnsavedElabftw,
+      importSelectedElabftw: templatesModule.importSelectedElabftw,
+      // Rename
       renameModal: templatesModule.renameModal,
       renameInputRef: templatesModule.renameInputRef,
       availableCategories: templatesModule.availableCategories,

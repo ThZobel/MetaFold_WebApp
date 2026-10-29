@@ -83,6 +83,11 @@ graph TD
 - Aufruf des LLM-Drafts nur bei Klick auf *"Send to AI Assistant"*.
 - Interaktive Prüfung und Korrektur in der PWA vor der endgültigen Übertragung.
 
+### 4. eLabFTW Template Hub & Vorlagen-Import (v4)
+- Bereitstellung von eLabFTW-Vorlagen direkt über den n8n-Webhook (`action: get_elabftw_templates` und `action: get_elabftw_template_details`).
+- Schützt API-Keys vor direktem Browser-Zugriff und umgeht CORS-Einschränkungen auf mobilen Endgeräten.
+- Im Knoten `User Auth & Lookup` kann entweder der integrierte `ELAB_TEMPLATES_CATALOG` gepflegt oder direkt die eLabFTW-API (`/api/v1/experiments_templates`) mit dem API-Key des Nutzers angebunden werden.
+
 ---
 
 ## ⚙️ Konfiguration & Import in n8n

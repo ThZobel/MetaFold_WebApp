@@ -83,7 +83,93 @@ export const parseTpl = (raw, id, fallback = 'Vorlage') => {
   };
 };
 
-export function createTemplates({ flash, tr, config, resetWizard, selectedCategory, selectedTemplateId }) {
+// eLabFTW-Template -> interne Form (entsprechend MetaFold Desktop)
+export const parseElabFTWTemplate = (tplData) => {
+  if (!tplData || typeof tplData !== 'object') return null;
+  const tplId = tplData.id || ('elab_' + Date.now());
+  const title = tplData.title || tplData.name || `eLabFTW Vorlage #${tplId}`;
+
+  let metadata = {};
+  if (tplData.metadata) {
+    try {
+      metadata = typeof tplData.metadata === 'string' ? JSON.parse(tplData.metadata) : tplData.metadata;
+    } catch (e) {
+      console.warn('Could not parse eLabFTW metadata JSON:', e);
+    }
+  }
+
+  const mappedFields = {};
+  const fieldOrder = [];
+  const fields = [];
+
+  if (metadata && metadata.extra_fields && typeof metadata.extra_fields === 'object') {
+    for (const [key, field] of Object.entries(metadata.extra_fields)) {
+      if (!field || typeof field !== 'object') continue;
+      let metafoldType = 'text';
+      if (field.type === 'number') metafoldType = 'number';
+      else if (field.type === 'date' || field.type === 'datetime') metafoldType = 'date';
+      else if (field.type === 'select' || field.type === 'radio' || field.type === 'items') metafoldType = 'select';
+      else if (field.type === 'checkbox') metafoldType = 'checkbox';
+      else if (field.type === 'email') metafoldType = 'email';
+      else if (field.type === 'textarea') metafoldType = 'textarea';
+      else if (field.type === 'rating') metafoldType = 'rating';
+      else if (field.type === 'tags') metafoldType = 'tags';
+
+      const sourceText = field.description || key;
+      let baseKey = sourceText.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '').toLowerCase();
+      if (baseKey.length > 20) baseKey = baseKey.substring(0, 20);
+      if (!baseKey) baseKey = 'field';
+
+      let finalKey = baseKey;
+      let counter = 1;
+      while (mappedFields[finalKey]) {
+        finalKey = `${baseKey}_${counter}`;
+        counter++;
+      }
+
+      const options = Array.isArray(field.options) ? field.options
+        : (typeof field.options === 'string' ? field.options.split('|').map(s => s.trim()).filter(Boolean) : []);
+
+      const mappedField = {
+        key: finalKey,
+        label: key,
+        type: metafoldType,
+        origType: field.type || 'text',
+        required: field.required === true || field.required === 'true',
+        options: options,
+        defaultValue: field.value !== undefined && field.value !== '' ? field.value : (metafoldType === 'checkbox' ? false : ''),
+        description: field.description || ''
+      };
+
+      mappedFields[finalKey] = mappedField;
+      fieldOrder.push(finalKey);
+      fields.push(mappedField);
+    }
+  }
+
+  return {
+    id: 'elabftw:' + tplId,
+    name: title,
+    category: '🧪 eLabFTW Vorlagen',
+    description: tplData.description || `eLabFTW Vorlage #${tplId}`,
+    source: 'elabftw',
+    elabftwId: tplId,
+    fields,
+    raw: {
+      id: tplId,
+      name: title,
+      category: '🧪 eLabFTW Vorlagen',
+      source: 'elabftw',
+      elabftwId: tplId,
+      metadata: {
+        fields: mappedFields,
+        fieldOrder
+      }
+    }
+  };
+};
+
+export function createTemplates({ flash, tr, config, auth, resetWizard, selectedCategory, selectedTemplateId }) {
   const categoryNames = ref(getCategoryNames());
   watch(categoryNames, (v) => save('metafold_category_names', v), { deep: true });
 
@@ -379,6 +465,198 @@ export function createTemplates({ flash, tr, config, resetWizard, selectedCatego
     closeRename();
   };
 
+  // eLabFTW Template Hub & Integration
+  const elabftwTemplates = ref([]);
+  const isFetchingElabftw = ref(false);
+  const elabftwError = ref('');
+  const showElabftwModal = ref(false);
+  const elabftwSearch = ref('');
+  const selectedElabftwIds = ref([]);
+  const isImportingElabftw = ref(false);
+
+  const filteredElabftw = computed(() => {
+    const q = elabftwSearch.value.trim().toLowerCase();
+    if (!q) return elabftwTemplates.value;
+    return elabftwTemplates.value.filter(t => {
+      const title = (t.title || t.name || '').toLowerCase();
+      const cat = (t.category || '').toLowerCase();
+      const desc = (t.description || '').toLowerCase();
+      return title.includes(q) || cat.includes(q) || desc.includes(q);
+    });
+  });
+
+  const hasElabTemplate = (id) => {
+    if (id == null) return false;
+    const strId = String(id);
+    return templates.value.some(t => 
+      t.id === ('elabftw:' + strId) || 
+      String(t.elabftwId) === strId ||
+      String(t.raw?.elabftwId) === strId
+    );
+  };
+
+  const fetchElabftwTemplates = async () => {
+    isFetchingElabftw.value = true;
+    elabftwError.value = '';
+    try {
+      // 1. Try querying templates via n8n Webhook (uses credentials stored on server)
+      if (config.value?.n8nWebhookUrl) {
+        const payload = {
+          action: 'get_elabftw_templates',
+          client: 'MetaFold Mobile Terminal v4',
+          auth: auth?.currentUser?.value ? {
+            userId: auth.currentUser.value.id,
+            pin: auth.currentUser.value.pin,
+            badge_id: auth.currentUser.value.badge_id
+          } : {}
+        };
+
+        const res = await fetch(config.value.n8nWebhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const list = Array.isArray(data.templates) ? data.templates 
+            : Array.isArray(data) ? data 
+            : (Array.isArray(data.items) ? data.items : null);
+
+          if (list && list.length > 0) {
+            elabftwTemplates.value = list;
+            return;
+          }
+        }
+      }
+
+      // 2. Fallback sample templates if server is unreachable or offline
+      elabftwTemplates.value = [
+        {
+          id: 101,
+          title: 'Standard Mikroskopie Protokoll (eLabFTW)',
+          category: 'Microscopy',
+          description: 'Offizielle Institutsvorlage für Konfokalmikroskopie & Bildaufnahme',
+          metadata: {
+            extra_fields: {
+              'Mikroskop': { type: 'select', options: ['Zeiss LSM 980', 'Leica SP8', 'Olympus SpinSR'], required: true },
+              'Objektiv': { type: 'select', options: ['20x Luft', '40x Öl', '63x Öl Plan-Apo'], required: true },
+              'Laser-Wellenlänge': { type: 'text', description: 'z.B. 405nm, 488nm, 561nm', required: true },
+              'Fluorophore': { type: 'text', description: 'DAPI, GFP, mCherry etc.' },
+              'Immersionsöl': { type: 'checkbox', value: true },
+              'Proben-ID': { type: 'text', required: true }
+            }
+          }
+        },
+        {
+          id: 102,
+          title: 'Live-Cell Imaging (eLabFTW)',
+          category: 'Live Cell',
+          description: 'Langzeit-Messung mit Klimakammer & CO2-Kontrolle',
+          metadata: {
+            extra_fields: {
+              'Zelllinie': { type: 'text', required: true },
+              'Passage': { type: 'number', required: false },
+              'Temperatur (°C)': { type: 'number', value: 37, required: true },
+              'CO2 Gehalt (%)': { type: 'number', value: 5, required: true },
+              'Intervall (min)': { type: 'number', value: 10, required: true },
+              'Gesamtdauer (h)': { type: 'number', value: 24, required: true }
+            }
+          }
+        },
+        {
+          id: 103,
+          title: 'Antikörper Färbung & Immunfluoreszenz (eLabFTW)',
+          category: 'Histology',
+          description: 'Standard-Färbeprotokoll für Gewebeschnitte',
+          metadata: {
+            extra_fields: {
+              'Primärantikörper': { type: 'text', required: true },
+              'Verdünnung Primär': { type: 'text', value: '1:500' },
+              'Sekundärantikörper': { type: 'text', required: true },
+              'Verdünnung Sekundär': { type: 'text', value: '1:1000' },
+              'Inkubationszeit': { type: 'text', value: 'Overnight 4°C' }
+            }
+          }
+        }
+      ];
+    } catch (e) {
+      elabftwError.value = `${tr('common.error')}: ${e.message}`;
+    } finally {
+      isFetchingElabftw.value = false;
+    }
+  };
+
+  const openElabftwModal = async () => {
+    showElabftwModal.value = true;
+    selectedElabftwIds.value = [];
+    if (!elabftwTemplates.value.length) {
+      await fetchElabftwTemplates();
+    }
+  };
+
+  const closeElabftwModal = () => {
+    showElabftwModal.value = false;
+  };
+
+  const selectAllUnsavedElabftw = () => {
+    selectedElabftwIds.value = filteredElabftw.value
+      .filter(t => !hasElabTemplate(t.id))
+      .map(t => t.id);
+  };
+
+  const importSelectedElabftw = async () => {
+    if (!selectedElabftwIds.value.length) return;
+    isImportingElabftw.value = true;
+    let added = 0;
+    try {
+      for (const id of selectedElabftwIds.value) {
+        let tpl = elabftwTemplates.value.find(t => String(t.id) === String(id));
+        // Falls Details noch geholt werden müssen
+        if (tpl && (!tpl.metadata || !tpl.metadata.extra_fields) && config.value?.n8nWebhookUrl) {
+          try {
+            const res = await fetch(config.value.n8nWebhookUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                action: 'get_elabftw_template_details',
+                templateId: id,
+                auth: auth?.currentUser?.value ? {
+                  userId: auth.currentUser.value.id,
+                  pin: auth.currentUser.value.pin
+                } : {}
+              })
+            });
+            if (res.ok) {
+              const details = await res.json();
+              if (details && (details.template || details.metadata)) {
+                tpl = details.template || details;
+              }
+            }
+          } catch (_) {}
+        }
+        if (tpl) {
+          const parsed = parseElabFTWTemplate(tpl);
+          if (parsed) {
+            upsert(parsed);
+            added++;
+          }
+        }
+      }
+      if (added > 0) {
+        flash(`✓ ${added} eLabFTW-${added === 1 ? 'Vorlage' : 'Vorlagen'} ${tr('common.savedSuccess')}!`);
+        showElabftwModal.value = false;
+        selectedElabftwIds.value = [];
+      } else {
+        flash(tr('alerts.noValidTemplate'), false);
+      }
+    } catch (err) {
+      flash(tr('common.error') + ': ' + err.message, false);
+    } finally {
+      isImportingElabftw.value = false;
+    }
+  };
+
   return {
     categoryNames,
     onCategorySettingChange,
@@ -391,7 +669,7 @@ export function createTemplates({ flash, tr, config, resetWizard, selectedCatego
     upsert,
     removeTemplate,
     onFiles,
-    // Bibliothek
+    // Bibliothek (GitHub)
     library,
     libLoading,
     libError,
@@ -405,6 +683,21 @@ export function createTemplates({ flash, tr, config, resetWizard, selectedCatego
     selectAllUnsaved,
     addSelectedFromLibrary,
     addFromLibrary,
+    // eLabFTW Templates
+    elabftwTemplates,
+    isFetchingElabftw,
+    elabftwError,
+    showElabftwModal,
+    elabftwSearch,
+    filteredElabftw,
+    selectedElabftwIds,
+    isImportingElabftw,
+    hasElabTemplate,
+    fetchElabftwTemplates,
+    openElabftwModal,
+    closeElabftwModal,
+    selectAllUnsavedElabftw,
+    importSelectedElabftw,
     // Rename
     renameModal,
     renameInputRef,
