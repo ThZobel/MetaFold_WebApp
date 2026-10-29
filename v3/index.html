@@ -51,7 +51,7 @@
   </header>
 
   <!-- Hinweis-Toast -->
-  <div v-if="toast" :class="toastOk ? 'bg-emerald-600' : 'bg-rose-600'" class="fixed top-20 inset-x-4 max-w-xl mx-auto z-50 text-white text-xs font-medium text-center p-3 rounded-xl shadow-lg">{{ toast }}</div>
+  <div v-if="toast" :class="toastOk ? 'bg-emerald-600' : 'bg-rose-600'" class="fixed top-20 inset-x-4 max-w-xl mx-auto z-[100] text-white text-xs font-medium text-center p-3 rounded-xl shadow-lg">{{ toast }}</div>
 
   <main class="p-4 pb-32 space-y-3">
 
@@ -253,7 +253,7 @@
           <button @click="resetWizard" type="button" class="btn bg-blue-600 text-white">
             {{ tr('review.newEntry') }} {{ currentUser ? '(' + currentUser.name + ')' : '' }}
           </button>
-          <button @click="logout" type="button" class="btn bg-slate-100 text-slate-700 hover:bg-slate-200">
+          <button @click="switchUser" type="button" class="btn bg-slate-100 text-slate-700 hover:bg-slate-200">
             🔄 {{ tr('auth.switchUser') }}
           </button>
         </div>
@@ -479,7 +479,10 @@
   </nav>
 
   <!-- Scanner -->
-  <div v-if="scanning" class="fixed inset-0 z-50 bg-black flex flex-col">
+  <div v-if="scanning" class="fixed inset-0 z-[90] bg-black flex flex-col">
+    <div class="absolute top-4 right-4 z-10">
+      <button @click="stopScan" type="button" class="w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center font-bold text-lg border border-white/20 transition" :aria-label="tr('common.close')">✕</button>
+    </div>
     <video ref="scanVideo" playsinline muted class="flex-1 min-h-0 w-full object-cover"></video>
     <div class="absolute inset-0 pointer-events-none flex items-center justify-center pb-24"><div class="w-64 h-64 border-4 border-white/80 rounded-3xl"></div></div>
     <div class="p-4 text-center space-y-3" style="padding-bottom:max(1rem, env(safe-area-inset-bottom))">
@@ -489,11 +492,11 @@
   </div>
 
   <!-- Einstellungen -->
-  <div v-if="showSettings" class="fixed inset-0 z-[70] bg-slate-100 overflow-y-auto">
+  <div v-if="showSettings" class="fixed inset-0 z-40 bg-slate-100 overflow-y-auto">
     <div class="max-w-xl mx-auto p-4 space-y-4 pb-12">
       <div class="flex items-center justify-between">
         <h2 class="text-lg font-bold">{{ tr('settings.title') }}</h2>
-        <button @click="closeSettings" type="button" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-semibold">{{ tr('common.done') }}</button>
+        <button @click="closeSettings" type="button" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-semibold hover:bg-slate-800 transition">{{ tr('common.done') }}</button>
       </div>
 
       <!-- Benutzerverwaltung & Terminal-Station -->
@@ -504,17 +507,22 @@
           <span v-else class="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full">Nicht angemeldet</span>
         </div>
         
-        <div v-if="currentUser" class="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between">
+        <div v-if="currentUser" class="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between gap-2">
           <div class="min-w-0 pr-2">
             <div class="text-sm font-bold text-slate-800 truncate">{{ currentUser.name }}</div>
             <div class="text-[11px] text-slate-500">ID: <code>{{ currentUser.id }}</code> {{ currentUser.badge_id ? '· Badge: ' + currentUser.badge_id : '' }}</div>
           </div>
-          <button @click="logout" type="button" class="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold active:scale-95 transition">
-            {{ tr('auth.logout') }}
-          </button>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button @click="switchUser" type="button" class="px-2.5 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-semibold active:scale-95 transition" title="Nutzer wechseln">
+              🔄 {{ tr('auth.switchUser') }}
+            </button>
+            <button @click="logout" type="button" class="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold active:scale-95 transition" title="Abmelden">
+              {{ tr('auth.logout') }}
+            </button>
+          </div>
         </div>
         <div v-else>
-          <button @click="openLogin" type="button" class="btn bg-blue-600 text-white text-xs py-2.5 font-semibold">
+          <button @click="openLogin" type="button" class="btn bg-blue-600 hover:bg-blue-700 text-white text-xs py-2.5 font-semibold shadow-sm">
             🔒 {{ tr('auth.loginBtn') }}
           </button>
         </div>
@@ -675,14 +683,23 @@
           Wird kein separater Whisper-Endpunkt eingetragen, kann auch der Haupt-Webhook genutzt werden.
         </p>
       </section>
+
+      <!-- Fertig-Button unten für Vollbild-Fenster -->
+      <div class="pt-2 pb-6">
+        <button @click="closeSettings" type="button" class="btn w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-3.5 shadow-md flex items-center justify-center gap-2 text-sm active:scale-[0.99] transition">
+          <span>✓</span>
+          <span>{{ tr('common.done') }}</span>
+        </button>
+      </div>
     </div>
   </div>
 
   <!-- Modal: Umbenennen (Kategorien & Templates) -->
-  <div v-if="renameModal.show" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm" @click.self="closeRename">
-    <div class="bg-white rounded-2xl p-5 w-full max-w-sm shadow-2xl space-y-4 border border-slate-200">
+  <div v-if="renameModal.show" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" @click.self="closeRename">
+    <div class="bg-white rounded-2xl p-5 w-full max-w-sm shadow-2xl space-y-4 border border-slate-200 relative">
+      <button type="button" @click="closeRename" class="absolute top-4 right-4 w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 flex items-center justify-center text-xs font-bold transition" :aria-label="tr('common.close')">✕</button>
       <div>
-        <div class="flex items-center gap-2 text-blue-600 font-bold text-sm mb-1">
+        <div class="flex items-center gap-2 text-blue-600 font-bold text-sm mb-1 pr-6">
           <span>✏️</span>
           <span>{{ renameModal.type === 'category' ? tr('rename.categoryTitle') : tr('rename.templateTitle') }}</span>
         </div>
@@ -718,18 +735,23 @@
   </div>
 
   <!-- Modal: Login / Terminal Authentifizierung (NFC / QR / PIN) -->
-  <div v-if="(showLoginModal || !currentUser) && !showSettings" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-    <div class="bg-white rounded-3xl max-w-sm w-full p-5 sm:p-6 shadow-2xl border border-slate-200 text-center space-y-4 my-auto animate-in fade-in zoom-in-95 duration-150">
+  <div v-if="showLoginModal" class="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto" @click.self="closeLogin">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-5 sm:p-6 shadow-2xl border border-slate-200 text-center space-y-4 my-auto animate-in fade-in zoom-in-95 duration-150 relative">
       
-      <!-- Obere Leiste: Schnelleinstieg in Einstellungen (immer erreichbar!) -->
+      <!-- Obere Leiste: Schnelleinstieg in Einstellungen & Schließen-Button -->
       <div class="flex items-center justify-between pb-2 border-b border-slate-100">
         <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
           <span>🏢</span> MetaFold Terminal
         </span>
-        <button type="button" @click="openSettings" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1 active:scale-95 transition" title="Einstellungen öffnen">
-          <span>⚙️</span>
-          <span>{{ tr('common.settings') }}</span>
-        </button>
+        <div class="flex items-center gap-1.5">
+          <button type="button" @click="openSettings(); showLoginModal = false;" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1 active:scale-95 transition" title="Einstellungen öffnen">
+            <span>⚙️</span>
+            <span>{{ tr('common.settings') }}</span>
+          </button>
+          <button type="button" @click="closeLogin" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 flex items-center justify-center text-xs font-bold active:scale-95 transition" title="Schließen" :aria-label="tr('common.close')">
+            ✕
+          </button>
+        </div>
       </div>
 
       <!-- Warnung & Einrichtungs-Hinweis, falls n8n Webhook noch nicht konfiguriert ist -->
@@ -741,7 +763,7 @@
         <p class="text-[11px] text-amber-800 leading-relaxed">
           Vor der ersten Anmeldung muss die n8n Webhook-URL hinterlegt werden, um Ausweise und PINs online zu prüfen.
         </p>
-        <button type="button" @click="openSettings" class="btn w-full bg-amber-600 hover:bg-amber-700 text-white text-xs py-2 font-semibold shadow-sm">
+        <button type="button" @click="openSettings(); showLoginModal = false;" class="btn w-full bg-amber-600 hover:bg-amber-700 text-white text-xs py-2 font-semibold shadow-sm">
           ⚙️ Jetzt in Einstellungen eintragen
         </button>
       </div>
@@ -756,7 +778,7 @@
         </p>
       </div>
 
-      <!-- Schritt 1: Zwingend NFC oder QR-Code Scan (Keine manuelle Benutzerauswahl!) -->
+      <!-- Schritt 1: NFC oder QR-Code Scan -->
       <div v-if="loginStep === 1" class="space-y-3 text-left">
         <!-- Scan-Buttons: QR und Web NFC -->
         <div class="grid grid-cols-2 gap-2 pt-1">
@@ -789,9 +811,15 @@
           </p>
         </div>
 
-        <button type="button" @click="proceedToPin" :disabled="!loginIdentifier.trim()" class="btn w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-semibold shadow-sm mt-2">
-          {{ tr('common.next') }} (PIN) ›
-        </button>
+        <!-- Buttons: Abbrechen & Weiter (PIN) -->
+        <div class="flex gap-2 pt-1 mt-2">
+          <button type="button" @click="closeLogin" class="btn flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-3 text-xs">
+            {{ tr('common.cancel') }}
+          </button>
+          <button type="button" @click="proceedToPin" :disabled="!loginIdentifier.trim()" class="btn flex-[2] bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-semibold shadow-sm py-3 text-xs">
+            {{ tr('common.next') }} (PIN) ›
+          </button>
+        </div>
       </div>
 
       <!-- Schritt 2: PIN-Eingabe Pad -->
@@ -831,18 +859,24 @@
           </button>
         </div>
 
-        <button type="button" @click="submitLogin" :disabled="loginPin.length < 4 || isLoggingIn" class="btn w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-semibold shadow-sm flex items-center justify-center gap-1.5 mt-2">
-          <span v-if="isLoggingIn" class="inline-block animate-spin">⏳</span>
-          <span>{{ isLoggingIn ? tr('common.sending') : tr('auth.loginBtn') }}</span>
-        </button>
+        <!-- Buttons: Abbrechen & Anmelden -->
+        <div class="flex gap-2 pt-1 mt-2">
+          <button type="button" @click="closeLogin" class="btn flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-3 text-xs">
+            {{ tr('common.cancel') }}
+          </button>
+          <button type="button" @click="submitLogin" :disabled="loginPin.length < 4 || isLoggingIn" class="btn flex-[2] bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-semibold shadow-sm flex items-center justify-center gap-1.5 py-3 text-xs">
+            <span v-if="isLoggingIn" class="inline-block animate-spin">⏳</span>
+            <span>{{ isLoggingIn ? tr('common.sending') : tr('auth.loginBtn') }}</span>
+          </button>
+        </div>
       </div>
 
       <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
-        <button v-if="currentUser" type="button" @click="showLoginModal = false" class="hover:text-slate-600">
-          {{ tr('common.cancel') }}
+        <button type="button" @click="closeLogin" class="hover:text-slate-600 font-medium flex items-center gap-1">
+          <span>✕</span>
+          <span>{{ tr('common.close') }}</span>
         </button>
-        <span v-else></span>
-        <button type="button" @click="openSettings" class="hover:text-blue-600 flex items-center gap-1 font-medium">
+        <button type="button" @click="openSettings(); showLoginModal = false;" class="hover:text-blue-600 flex items-center gap-1 font-medium">
           <span>⚙️</span>
           <span>{{ tr('settings.n8nWebhook') }}</span>
         </button>
@@ -851,15 +885,16 @@
   </div>
 
   <!-- Modal: Benutzer-Menü / Schnellwechsel -->
-  <div v-if="showUserMenuModal" class="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" @click.self="showUserMenuModal = false">
-    <div class="bg-white rounded-2xl p-5 w-full max-w-xs shadow-2xl border border-slate-200 text-center space-y-3">
+  <div v-if="showUserMenuModal" class="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" @click.self="showUserMenuModal = false">
+    <div class="bg-white rounded-2xl p-5 w-full max-w-xs shadow-2xl border border-slate-200 text-center space-y-3 relative">
+      <button type="button" @click="showUserMenuModal = false" class="absolute top-4 right-4 w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 flex items-center justify-center text-xs font-bold transition" :aria-label="tr('common.close')">✕</button>
       <div class="w-12 h-12 mx-auto rounded-full bg-blue-100 text-blue-700 text-2xl flex items-center justify-center">👤</div>
       <div>
         <h3 class="font-bold text-base text-slate-900">{{ currentUser?.name }}</h3>
         <p class="text-xs text-slate-500">ID: <code>{{ currentUser?.id }}</code></p>
       </div>
       <div class="space-y-2 pt-2">
-        <button type="button" @click="logout" class="btn w-full bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs py-2.5 font-semibold">
+        <button type="button" @click="switchUser" class="btn w-full bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs py-2.5 font-semibold">
           🔄 {{ tr('auth.switchUser') }}
         </button>
         <button type="button" @click="logout" class="btn w-full bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs py-2.5 font-semibold border border-rose-200">
@@ -873,7 +908,7 @@
   </div>
 
   <!-- Modal: Vorlagen aus GitHub-Bibliothek auswählen (Multi-Select) -->
-  <div v-if="showLibraryModal" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+  <div v-if="showLibraryModal" class="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" @click.self="showLibraryModal = false">
     <div class="bg-white rounded-3xl max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
       
       <!-- Modal Header -->
@@ -979,6 +1014,7 @@ const MESSAGES = {
       next: 'Weiter',
       error: 'Fehler',
       cancel: 'Abbrechen',
+      close: 'Schließen',
       saved: 'Gespeichert',
       save: 'Speichern',
       rename: 'Umbenennen',
@@ -1146,6 +1182,7 @@ const MESSAGES = {
       next: 'Next',
       error: 'Error',
       cancel: 'Cancel',
+      close: 'Close',
       saved: 'Saved',
       save: 'Save',
       rename: 'Rename',
@@ -2210,6 +2247,31 @@ createApp({
       openLogin();
     };
 
+    const switchUser = () => {
+      showUserMenuModal.value = false;
+      openLogin();
+    };
+
+    const closeLogin = () => {
+      showLoginModal.value = false;
+      loginStep.value = 1;
+      loginPin.value = '';
+      loginError.value = '';
+      isNfcListening.value = false;
+    };
+
+    // Globaler Keyboard-Listener: Escape schließt aktive Dialoge
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (scanning.value) { stopScan(); return; }
+        if (showLibraryModal.value) { showLibraryModal.value = false; return; }
+        if (renameModal.value.show) { closeRename(); return; }
+        if (showUserMenuModal.value) { showUserMenuModal.value = false; return; }
+        if (showLoginModal.value) { closeLogin(); return; }
+        if (showSettings.value) { closeSettings(); return; }
+      }
+    });
+
     const openUserMenu = () => {
       showUserMenuModal.value = true;
     };
@@ -2572,7 +2634,7 @@ createApp({
       tagDraft, onTagInput, commitTag, removeTag, setRating, toggleMulti, scanable, scanning, scanVideo, openScan, stopScan,
       // Multi-User & Auth
       currentUser, showLoginModal, showUserMenuModal, loginStep, loginIdentifier, loginPin, isLoggingIn, loginError,
-      isNfcListening, autoLogoutAfterSend, loginInputRef, openLogin, proceedToPin, pressPinDigit, submitLogin,
+      isNfcListening, autoLogoutAfterSend, loginInputRef, openLogin, closeLogin, switchUser, proceedToPin, pressPinDigit, submitLogin,
       logout, openUserMenu, startLoginQrScan, startWebNfcScan,
       // n8n Verbindungstest
       n8nTestStatus, isTestingN8n, testN8nConnection
