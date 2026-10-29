@@ -173,8 +173,13 @@
             }));
 
           } catch (err) {
-            console.error('Fehler beim Auslesen des Repos:', err);
-            errorMessage.value = err.message || 'Ordner konnten nicht geladen werden.';
+            console.warn('API nicht verfügbar, nutze Standard-Versionenliste:', err);
+            versions.value = [
+              { name: 'v1', title: 'V1 (Minimal)', path: 'v1', url: './v1/' },
+              { name: 'v2', title: 'V2 (Advanced)', path: 'v2', url: './v2/' },
+              { name: 'v3', title: 'V3 (Terminal & Whisper)', path: 'v3', url: './v3/' },
+              { name: 'v4', title: 'V4 (Modular PWA & Capability Discovery)', path: 'v4', url: './v4/' }
+            ];
           } finally {
             loading.value = false;
           }

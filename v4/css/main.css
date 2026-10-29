@@ -1,0 +1,111 @@
+/* MetaFold Mobile Terminal v4 - Core Styles & Design System */
+
+@layer components {
+  .card {
+    background-color: #ffffff;
+    padding: 1rem;
+    border-radius: 1rem;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  }
+
+  .big {
+    background-color: #ffffff;
+    width: 100%;
+    text-align: left;
+    padding: 1.25rem;
+    border-radius: 1rem;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    user-select: none;
+  }
+
+  .big:active {
+    transform: scale(0.98);
+  }
+
+  .big:hover {
+    border-color: #93c5fd;
+  }
+
+  .inp {
+    width: 100%;
+    padding: 0.75rem;
+    background-color: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.75rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .inp:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+    background-color: #ffffff;
+  }
+
+  .btn {
+    display: block;
+    width: 100%;
+    padding-top: 0.875rem;
+    padding-bottom: 0.875rem;
+    border-radius: 0.75rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.1s ease, background-color 0.15s ease, opacity 0.15s ease;
+    user-select: none;
+  }
+
+  .btn:active {
+    transform: scale(0.98);
+  }
+
+  .btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+}
+
+/* Touch & Mobile UX Optimizations */
+.no-callout {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Custom scrollbars for modals */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Modal Stacking Layers (Z-Index System) */
+.layer-header   { z-index: 20; }
+.layer-nav      { z-index: 20; }
+.layer-settings { z-index: 40; }
+.layer-modal    { z-index: 60; }
+.layer-scanner  { z-index: 90; }
+.layer-toast    { z-index: 100; }

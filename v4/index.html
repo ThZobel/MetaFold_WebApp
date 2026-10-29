@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>MetaFold Mobile Terminal v4 (Modular PWA)</title>
+  
+  <!-- PWA Manifest & Meta Tags -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2563eb">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="MetaFold v4">
+
+  <!-- Core Libraries: TailwindCSS & jsQR -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+
+  <!-- Modular CSS Design System -->
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased">
+<div id="app" class="max-w-xl mx-auto min-h-screen">
+
+  <!-- Kopf: klein, mit Fortschritt -->
+  <header class="sticky top-0 z-20 bg-white border-b border-slate-200 px-4 pt-3 pb-2">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-2 min-w-0">
+        <h1 class="text-base font-bold text-slate-900 shrink-0">MetaFold <span class="text-[10px] font-normal text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full border border-blue-200">v4</span></h1>
+        <!-- Benutzer-Badge / Login-Status -->
+        <button v-if="currentUser" @click="openUserMenu" type="button" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-800 active:scale-95 transition truncate" :title="tr('auth.switchUser')">
+          <span>👤</span>
+          <span class="truncate max-w-[130px]">{{ currentUser.name }}</span>
+          <span class="text-[10px] text-blue-500">▼</span>
+        </button>
+        <button v-else @click="openLogin" type="button" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-800 active:scale-95 transition animate-pulse">
+          <span>🔒</span>
+          <span>{{ tr('auth.loginBtn') }}</span>
+        </button>
+      </div>
+      <button @click="openSettings" type="button" :aria-label="tr('common.settings')" class="w-9 h-9 rounded-full bg-slate-100 border border-slate-200 text-base shrink-0 active:scale-95 transition">⚙️</button>
+    </div>
+    <div class="flex gap-2 mt-2.5">
+      <button v-for="(s,i) in stepLabels" :key="s" type="button" @click="goStep(i+1)" :disabled="!canGo(i+1)" class="flex-1 text-left disabled:opacity-40">
+        <div :class="step>i+1 ? 'bg-blue-300' : step===i+1 ? 'bg-blue-600' : 'bg-slate-200'" class="h-1.5 rounded-full transition-colors"></div>
+        <span :class="step===i+1 ? 'text-blue-700 font-bold' : 'text-slate-500'" class="text-[10px]">{{ i+1 }}. {{ tr(s) }}</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Hinweis-Toast -->
+  <div v-if="toast" :class="toastOk ? 'bg-emerald-600' : 'bg-rose-600'" class="fixed top-20 inset-x-4 max-w-xl mx-auto z-[100] text-white text-xs font-medium text-center p-3 rounded-xl shadow-lg transition-all animate-in fade-in slide-in-from-top-2">{{ toast }}</div>
+
+  <main class="p-4 pb-32 space-y-3">
+
+    <!-- Schritt 1: Kategorie -->
+    <section v-if="step===1" class="space-y-3">
+      <h2 class="text-lg font-bold">{{ tr('category.title') }}</h2>
+      <p class="text-sm text-slate-500 -mt-2">{{ tr('category.choose') }}</p>
+
+      <div v-if="!categories.length" class="card text-center space-y-3 p-5">
+        <p class="text-sm text-slate-600">{{ tr('category.noTemplates') }}</p>
+        <button @click="openSettings" type="button" class="btn bg-blue-600 text-white">📚 {{ tr('category.fromLibrary') }}</button>
+        <label class="btn bg-slate-100 text-slate-700 border border-slate-300">📂 {{ tr('category.loadFile') }}
+          <input type="file" accept=".json,application/json" multiple class="hidden" @change="onFiles">
+        </label>
+      </div>
+
+      <div v-for="c in categories" :key="c.name" 
+        @click="onCardClick(() => pickCategory(c.name))"
+        @touchstart="startLongPress(() => openRenameCategory(c.name), $event)"
+        @touchmove="cancelLongPress($event)"
+        @touchend="endLongPress()"
+        @touchcancel="cancelLongPress()"
+        @mousedown="startLongPress(() => openRenameCategory(c.name), $event)"
+        @mousemove="cancelLongPress($event)"
+        @mouseup="endLongPress()"
+        @mouseleave="cancelLongPress()"
+        @contextmenu.prevent="openRenameCategory(c.name)"
+        class="big cursor-pointer select-none no-callout group hover:border-blue-300 transition"
+        role="button" tabindex="0">
+        <div class="flex-1 min-w-0 pr-2">
+          <div class="text-base font-semibold flex items-center gap-1.5 truncate">
+            <span>🏷️</span>
+            <span class="truncate">{{ c.name }}</span>
+          </div>
+          <div class="text-xs text-slate-500 mt-0.5">{{ c.count }} {{ c.count===1 ? tr('common.template') : tr('common.templates') }}</div>
+        </div>
+        <span class="text-2xl text-slate-300 group-hover:text-blue-400 transition flex-shrink-0">›</span>
+      </div>
+      <p v-if="categories.length" class="text-[11px] text-center text-slate-400 pt-1">💡 {{ tr('category.longPressHint') }}</p>
+    </section>
+
+    <!-- Schritt 2: Vorlage -->
+    <section v-if="step===2" class="space-y-3">
+      <h2 class="text-lg font-bold">{{ selectedCategory }}</h2>
+      <p class="text-sm text-slate-500 -mt-2">{{ tr('template.choose') }}</p>
+      <div v-for="tpl in filteredTemplates" :key="tpl.id" 
+        @click="onCardClick(() => pickTemplate(tpl.id))"
+        @touchstart="startLongPress(() => openRenameTemplate(tpl), $event)"
+        @touchmove="cancelLongPress($event)"
+        @touchend="endLongPress()"
+        @touchcancel="cancelLongPress()"
+        @mousedown="startLongPress(() => openRenameTemplate(tpl), $event)"
+        @mousemove="cancelLongPress($event)"
+        @mouseup="endLongPress()"
+        @mouseleave="cancelLongPress()"
+        @contextmenu.prevent="openRenameTemplate(tpl)"
+        class="big cursor-pointer select-none no-callout group hover:border-blue-300 transition"
+        role="button" tabindex="0">
+        <div class="flex-1 min-w-0 pr-2">
+          <div class="text-base font-semibold truncate">{{ tpl.name }}</div>
+          <div v-if="tpl.description" class="text-xs text-slate-500 mt-0.5 line-clamp-2">{{ tpl.description }}</div>
+          <div class="text-[11px] text-slate-400 mt-1">{{ fieldTotal(tpl) }} {{ tr('common.fields') }}</div>
+        </div>
+        <span class="text-2xl text-slate-300 group-hover:text-blue-400 transition flex-shrink-0">›</span>
+      </div>
+      <p v-if="filteredTemplates.length" class="text-[11px] text-center text-slate-400 pt-1">💡 {{ tr('template.longPressHint') }}</p>
+    </section>
+
+    <!-- Schritt 3: Erfassen -->
+    <section v-if="step===3 && currentTemplate" class="space-y-3">
+      <div>
+        <h2 class="text-lg font-bold">{{ currentTemplate.name }}</h2>
+        <p class="text-xs text-slate-500">{{ selectedCategory }}</p>
+      </div>
+
+      <!-- Allgemeine Sprachnotiz mit Whisper & Browser-Umschalter -->
+      <div class="bg-blue-50 border border-blue-200 rounded-2xl p-4 space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-bold text-blue-900">🎙️ {{ tr('voice.title') }}</span>
+            <!-- Modus-Wahlschalter: Whisper vs Browser -->
+            <div class="inline-flex rounded-lg bg-blue-200/60 p-0.5 text-[11px] font-semibold">
+              <button type="button" @click="setSpeechMode('whisper')"
+                :class="speechMode==='whisper' ? 'bg-white text-blue-900 shadow-sm' : 'text-blue-700 hover:text-blue-900'"
+                class="px-2 py-0.5 rounded-md transition flex items-center gap-1">
+                <span>✨ Whisper</span>
+              </button>
+              <button type="button" @click="setSpeechMode('browser')"
+                :class="speechMode==='browser' ? 'bg-white text-blue-900 shadow-sm' : 'text-blue-700 hover:text-blue-900'"
+                class="px-2 py-0.5 rounded-md transition flex items-center gap-1">
+                <span>🌐 Browser</span>
+              </button>
+            </div>
+          </div>
+
+          <button @click="handleSpeechAction('__general')" type="button"
+            :disabled="isTranscribing && recordingTarget==='__general'"
+            :class="isRecordingNow('__general') ? 'bg-red-500 text-white animate-pulse' : isTranscribing && recordingTarget==='__general' ? 'bg-amber-500 text-white animate-pulse' : 'bg-blue-600 text-white'"
+            class="px-4 py-2.5 rounded-xl text-sm font-semibold active:scale-95 transition shrink-0 flex items-center gap-1.5 shadow-sm">
+            <template v-if="isTranscribing && recordingTarget==='__general'">
+              <span class="inline-block animate-spin">⏳</span> {{ tr('voice.transcribing') }}
+            </template>
+            <template v-else-if="isRecordingNow('__general')">
+              <span>■</span> {{ tr('voice.stop') }} ({{ formatTimer(recordingSeconds) }})
+            </template>
+            <template v-else>
+              <span>●</span> {{ tr('voice.record') }}
+            </template>
+          </button>
+        </div>
+
+        <textarea v-model="generalNote" rows="3" class="inp bg-white" :placeholder="speechMode==='whisper' ? tr('voice.placeholderWhisper') : tr('voice.placeholderBrowser')"></textarea>
+      </div>
+
+      <div class="card space-y-4">
+        <div v-for="field in currentTemplate.fields" :key="field.key" class="space-y-1.5">
+          <div v-if="field.type==='group'" class="pt-3 pb-1 border-b border-slate-200">
+            <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider">📁 {{ field.label }}</h3>
+          </div>
+          <template v-else>
+            <div class="flex justify-between items-center gap-2">
+              <label class="block text-xs font-medium text-slate-700">{{ field.label }} <span v-if="field.required" class="text-red-500 font-bold">*</span></label>
+              <div class="flex gap-1.5 shrink-0">
+                <button v-if="scanable(field)" @click="openScan(field.key)" type="button" class="text-[11px] px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-100 text-slate-600 font-medium active:scale-95 transition">📷 {{ tr('scanner.scan') }}</button>
+                <button v-if="field.type==='text' || field.type==='textarea'" @click="handleSpeechAction(field.key)" type="button"
+                :disabled="isTranscribing && recordingTarget===field.key"
+                :class="isRecordingNow(field.key) ? 'bg-red-500 text-white animate-pulse' : isTranscribing && recordingTarget===field.key ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-600'"
+                class="text-[11px] px-2.5 py-1 rounded-lg border border-slate-200 font-medium active:scale-95 transition">
+                🎙️ {{ isTranscribing && recordingTarget===field.key ? tr('voice.transcribing') : isRecordingNow(field.key) ? tr('voice.stop') + ' (' + formatTimer(recordingSeconds) + ')' : tr('voice.dictate') }}
+              </button>
+              </div>
+            </div>
+            <select v-if="field.type==='select'" v-model="formData[field.key]" class="inp">
+              <option value="">{{ tr('common.selectPrompt') }}</option>
+              <option v-for="o in field.options" :key="o" :value="o">{{ o }}</option>
+            </select>
+            <textarea v-else-if="field.type==='textarea'" v-model="formData[field.key]" rows="3" class="inp"></textarea>
+            <label v-else-if="field.type==='checkbox'" class="flex items-center gap-3 p-3 bg-slate-50 border border-slate-300 rounded-xl text-sm cursor-pointer">
+              <input type="checkbox" v-model="formData[field.key]" class="w-5 h-5 rounded text-blue-600"> {{ tr('common.yes') }}
+            </label>
+            <div v-else-if="field.type==='tags'" class="bg-slate-50 border border-slate-300 rounded-xl p-2 flex flex-wrap gap-1.5 focus-within:ring-2 focus-within:ring-blue-500">
+              <span v-for="(tg,i) in formData[field.key]" :key="tg+i" class="inline-flex items-center gap-1 bg-blue-100 text-blue-800 text-xs font-medium pl-3 pr-1.5 py-1.5 rounded-full">
+                {{ tg }}<button type="button" @click="removeTag(field.key,i)" class="w-5 h-5 rounded-full text-blue-700 leading-none active:bg-blue-200">✕</button>
+              </span>
+              <input type="text" enterkeyhint="done" :placeholder="tr('scanner.tagPrompt')" :value="tagDraft[field.key] || ''" @input="onTagInput(field.key,$event)" @keydown.enter.prevent="commitTag(field.key)" @blur="commitTag(field.key)" class="flex-1 min-w-[9rem] bg-transparent outline-none text-sm p-1.5">
+            </div>
+            <div v-else-if="field.type==='rating'" class="flex items-center gap-0.5">
+              <button v-for="n in 5" :key="n" type="button" @click="setRating(field.key,n)" :class="n <= (formData[field.key]||0) ? 'text-amber-400' : 'text-slate-300'" class="text-4xl leading-none p-1 active:scale-90 transition">★</button>
+              <span class="ml-2 text-xs text-slate-400">{{ formData[field.key] || 0 }} / 5</span>
+            </div>
+            <div v-else-if="field.type==='multicheckbox'" class="flex flex-wrap gap-2">
+              <button v-for="o in field.options" :key="o" type="button" @click="toggleMulti(field.key,o)" :aria-pressed="(formData[field.key]||[]).includes(o)" :class="(formData[field.key]||[]).includes(o) ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-50 text-slate-700 border-slate-300'" class="px-3.5 py-2 rounded-full border text-sm font-medium active:scale-95 transition">{{ (formData[field.key]||[]).includes(o) ? '✓ ' : '' }}{{ o }}</button>
+            </div>
+            <input v-else :type="field.type" v-model="formData[field.key]" class="inp">
+            <p v-if="field.description" class="text-[10px] text-slate-400">{{ field.description }}</p>
+          </template>
+        </div>
+      </div>
+    </section>
+
+    <!-- Schritt 4: Prüfen & Senden -->
+    <section v-if="step===4 && currentTemplate" class="space-y-3">
+      <!-- Zustand A: Erfolgreich übertragen -->
+      <div v-if="sent" class="card text-center space-y-4 p-6">
+        <div class="text-4xl">✅</div>
+        <div>
+          <p class="font-bold text-base text-slate-800">{{ tr('review.success') }}</p>
+          <p v-if="currentUser" class="text-xs text-blue-700 font-medium mt-0.5">👤 Erfasst für <b>{{ currentUser.name }}</b></p>
+          <p class="text-xs text-slate-500 mt-0.5">Webhook erfolgreich an n8n übermittelt</p>
+        </div>
+
+        <!-- n8n Server-Echo Anzeige -->
+        <div v-if="serverEchoData" class="text-left bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs space-y-2">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+            <span class="font-bold text-slate-700 flex items-center gap-1.5">
+              <span>🤖</span> n8n Rückmeldung (Echo)
+            </span>
+            <span class="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full text-[10px]">HTTP 200 OK</span>
+          </div>
+          <div class="font-medium text-slate-800 text-sm">
+            {{ serverEchoData.message || 'Daten erfolgreich empfangen!' }}
+          </div>
+          <div v-if="serverEchoData.server_time" class="text-[11px] text-slate-400">
+            Serverzeit: {{ new Date(serverEchoData.server_time).toLocaleTimeString() }}
+          </div>
+          <details v-if="serverEchoData.received_metadata" class="pt-1">
+            <summary class="cursor-pointer text-blue-600 font-medium hover:underline text-[11px]">Empfangene Metadaten anzeigen</summary>
+            <pre class="mt-2 p-2 bg-white rounded-lg border border-slate-200 text-[10px] text-slate-600 overflow-x-auto">{{ JSON.stringify(serverEchoData.received_metadata, null, 2) }}</pre>
+          </details>
+          <!-- Direkter Button zu eLabFTW -->
+          <div v-if="serverEchoData.elabftw_url || serverEchoData.url || serverEchoData.experiment_url" class="pt-2">
+            <a :href="serverEchoData.elabftw_url || serverEchoData.url || serverEchoData.experiment_url" target="_blank" rel="noopener" class="btn w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center justify-center gap-2 py-3.5 rounded-xl shadow-md text-sm active:scale-95 transition">
+              <span>🧪</span>
+              <span>In eLabFTW öffnen {{ (serverEchoData.elabftw_id || serverEchoData.id) ? '(Experiment #' + (serverEchoData.elabftw_id || serverEchoData.id) + ')' : '' }} ↗</span>
+            </a>
+          </div>
+        </div>
+
+        <div class="space-y-2 pt-1">
+          <button @click="resetWizard" type="button" class="btn bg-blue-600 text-white">
+            {{ tr('review.newEntry') }} {{ currentUser ? '(' + currentUser.name + ')' : '' }}
+          </button>
+          <button @click="switchUser" type="button" class="btn bg-slate-100 text-slate-700 hover:bg-slate-200">
+            🔄 {{ tr('auth.switchUser') }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Zustand B: KI-Entwurf zur Freigabe (strukturiert & interaktiv) -->
+      <div v-else-if="aiDraft" class="card space-y-4 p-5 border-2 border-indigo-200 bg-indigo-50/20">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-xl">✨</span>
+            <h3 class="font-bold text-sm text-indigo-950">{{ tr('review.aiDraftTitle') }}</h3>
+          </div>
+          <span class="text-[10px] bg-indigo-100 text-indigo-800 font-bold px-2 py-0.5 rounded-full">Freigabe</span>
+        </div>
+
+        <p class="text-xs text-slate-600">{{ tr('review.aiDraftDesc') }}</p>
+
+        <!-- Editierbarer KI-Titel -->
+        <div class="space-y-1">
+          <label class="block text-[11px] font-semibold text-slate-700">Titel</label>
+          <input v-model="aiDraft.title" type="text" class="inp text-sm bg-white">
+        </div>
+
+        <!-- Strukturierte Metadaten mit interaktiver Klick-Korrektur (Dropdowns, Checkboxen etc.) -->
+        <div class="card divide-y divide-slate-100 bg-white">
+          <div v-for="r in aiDraftRows" :key="r.key" class="py-2.5 first:pt-0 last:pb-0">
+            <div class="flex justify-between items-center">
+              <span class="text-[11px] text-slate-400 font-medium">{{ r.label }}</span>
+              <button @click="editingAiField = editingAiField === r.key ? null : r.key" type="button" class="text-slate-400 hover:text-indigo-600 text-xs p-0.5 font-medium">
+                {{ editingAiField === r.key ? '✓ ' + tr('common.done') : '✏️' }}
+              </button>
+            </div>
+
+            <!-- Edit-Modus je nach Feldtyp -->
+            <div v-if="editingAiField === r.key" class="mt-1">
+              <select v-if="r.field.type === 'select'" v-model="aiDraft.metadata[r.key]" class="inp text-sm py-2 px-2.5 bg-indigo-50/40 border-indigo-300">
+                <option value="">{{ tr('common.selectPrompt') }}</option>
+                <option v-for="o in r.field.options" :key="o" :value="o">{{ o }}</option>
+              </select>
+
+              <label v-else-if="r.field.type === 'checkbox'" class="flex items-center gap-2.5 p-2 bg-indigo-50/40 border border-indigo-300 rounded-xl text-sm cursor-pointer">
+                <input type="checkbox" v-model="aiDraft.metadata[r.key]" class="w-4 h-4 text-indigo-600 rounded">
+                <span>{{ tr('common.yes') }}</span>
+              </label>
+
+              <textarea v-else-if="r.field.type === 'textarea'" v-model="aiDraft.metadata[r.key]" rows="2" class="inp text-sm py-1.5 px-2 bg-indigo-50/40 border-indigo-300"></textarea>
+
+              <div v-else-if="r.field.type === 'rating'" class="flex items-center gap-1 py-1">
+                <button v-for="n in 5" :key="n" type="button" @click="aiDraft.metadata[r.key] = n" :class="n <= (aiDraft.metadata[r.key]||0) ? 'text-amber-400' : 'text-slate-300'" class="text-3xl leading-none p-0.5 active:scale-90 transition">★</button>
+                <span class="ml-2 text-xs text-slate-500">{{ aiDraft.metadata[r.key] || 0 }} / 5</span>
+              </div>
+
+              <div v-else-if="r.field.type === 'multicheckbox'" class="flex flex-wrap gap-1.5 py-1">
+                <button v-for="o in r.field.options" :key="o" type="button" @click="toggleAiMulti(r.key, o)" :class="(aiDraft.metadata[r.key]||[]).includes(o) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-700 border-slate-300'" class="px-2.5 py-1 rounded-full border text-xs font-medium active:scale-95 transition">{{ (aiDraft.metadata[r.key]||[]).includes(o) ? '✓ ' : '' }}{{ o }}</button>
+              </div>
+
+              <input v-else-if="r.field.type === 'number'" type="number" v-model.number="aiDraft.metadata[r.key]" class="inp text-sm py-1.5 px-2 bg-indigo-50/40 border-indigo-300">
+              <input v-else-if="r.field.type === 'date'" type="date" v-model="aiDraft.metadata[r.key]" class="inp text-sm py-1.5 px-2 bg-indigo-50/40 border-indigo-300">
+              <input v-else type="text" v-model="aiDraft.metadata[r.key]" class="inp text-sm py-1.5 px-2 bg-indigo-50/40 border-indigo-300">
+            </div>
+
+            <!-- Anzeige-Modus: Antippbar zum Bearbeiten -->
+            <div v-else @click="editingAiField = r.key" class="text-sm font-medium text-slate-800 break-words cursor-pointer hover:text-indigo-600 transition" :title="tr('review.editPrompt')">
+              {{ r.value }}
+            </div>
+          </div>
+
+          <p v-if="!aiDraftRows.length" class="text-sm text-slate-400 py-1">{{ tr('review.noFieldsDetected') }}</p>
+        </div>
+
+        <!-- Zusätzliche Notizen aus der Sprachnotiz -->
+        <div class="space-y-1">
+          <label class="block text-[11px] font-semibold text-slate-700">📝 {{ tr('review.aiAdditionalNotes') }}</label>
+          <textarea v-model="aiDraft.additional_notes" rows="2" class="inp text-sm bg-white" :placeholder="tr('review.aiPlaceholderNotes')"></textarea>
+        </div>
+
+        <!-- Aktionen: Freigeben & Speichern oder Verwerfen -->
+        <div class="flex gap-2 pt-1">
+          <button @click="approveAiDraft" :disabled="isSubmitting" type="button" class="btn flex-[2] bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-sm flex items-center justify-center gap-1.5">
+            <span v-if="isSubmitting" class="inline-block animate-spin">⏳</span>
+            <span v-else>✅</span>
+            <span>{{ isSubmitting ? tr('common.sending') : tr('review.aiApprove') }}</span>
+          </button>
+          <button @click="discardAiDraft" :disabled="isSubmitting" type="button" class="btn flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700">
+            {{ tr('review.aiDiscard') }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Zustand C: Zusammenfassung vor dem Senden -->
+      <template v-else>
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-lg font-bold">{{ tr('review.title') }}</h2>
+            <p class="text-xs text-slate-500">{{ selectedCategory }} · {{ currentTemplate.name }} · {{ summaryRows.length }} {{ tr('common.of') }} {{ fieldTotal(currentTemplate) }} {{ tr('common.fieldsFilled') }}</p>
+          </div>
+          <!-- Erfasser Badge -->
+          <div v-if="currentUser" @click="openLogin" class="text-right cursor-pointer group" :title="tr('auth.switchUser')">
+            <span class="text-[10px] text-slate-400 block font-medium">{{ tr('auth.recordedBy') }}</span>
+            <span class="text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-full inline-flex items-center gap-1 group-hover:bg-blue-100 transition">
+              <span>👤</span> {{ currentUser.name }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Interaktive Zusammenfassung mit Klick-Korrektur (Typ-spezifisch) -->
+        <div class="card divide-y divide-slate-100">
+          <div v-for="r in summaryRows" :key="r.key" class="py-2.5 first:pt-0 last:pb-0">
+            <div class="flex justify-between items-center">
+              <span class="text-[11px] text-slate-400 font-medium">{{ r.label }}</span>
+              <button @click="editingField = editingField === r.key ? null : r.key" type="button" class="text-slate-400 hover:text-blue-600 text-xs p-0.5 font-medium">
+                {{ editingField === r.key ? '✓ ' + tr('common.done') : '✏️' }}
+              </button>
+            </div>
+
+            <!-- Edit-Modus je nach Feldtyp -->
+            <div v-if="editingField === r.key" class="mt-1">
+              <select v-if="r.field.type === 'select'" v-model="formData[r.key]" class="inp text-sm py-2 px-2.5 bg-blue-50/40 border-blue-300">
+                <option value="">{{ tr('common.selectPrompt') }}</option>
+                <option v-for="o in r.field.options" :key="o" :value="o">{{ o }}</option>
+              </select>
+
+              <label v-else-if="r.field.type === 'checkbox'" class="flex items-center gap-2.5 p-2 bg-blue-50/40 border border-blue-300 rounded-xl text-sm cursor-pointer">
+                <input type="checkbox" v-model="formData[r.key]" class="w-4 h-4 text-blue-600 rounded">
+                <span>{{ tr('common.yes') }}</span>
+              </label>
+
+              <textarea v-else-if="r.field.type === 'textarea'" v-model="formData[r.key]" rows="2" class="inp text-sm py-1.5 px-2 bg-blue-50/40 border-blue-300"></textarea>
+
+              <div v-else-if="r.field.type === 'rating'" class="flex items-center gap-1 py-1">
+                <button v-for="n in 5" :key="n" type="button" @click="formData[r.key] = n" :class="n <= (formData[r.key]||0) ? 'text-amber-400' : 'text-slate-300'" class="text-3xl leading-none p-0.5 active:scale-90 transition">★</button>
+                <span class="ml-2 text-xs text-slate-500">{{ formData[r.key] || 0 }} / 5</span>
+              </div>
+
+              <div v-else-if="r.field.type === 'multicheckbox'" class="flex flex-wrap gap-1.5 py-1">
+                <button v-for="o in r.field.options" :key="o" type="button" @click="toggleMulti(r.key, o)" :class="(formData[r.key]||[]).includes(o) ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-700 border-slate-300'" class="px-2.5 py-1 rounded-full border text-xs font-medium active:scale-95 transition">{{ (formData[r.key]||[]).includes(o) ? '✓ ' : '' }}{{ o }}</button>
+              </div>
+
+              <input v-else-if="r.field.type === 'number'" type="number" v-model.number="formData[r.key]" class="inp text-sm py-1.5 px-2 bg-blue-50/40 border-blue-300">
+              <input v-else-if="r.field.type === 'date'" type="date" v-model="formData[r.key]" class="inp text-sm py-1.5 px-2 bg-blue-50/40 border-blue-300">
+              <input v-else type="text" v-model="formData[r.key]" class="inp text-sm py-1.5 px-2 bg-blue-50/40 border-blue-300">
+            </div>
+
+            <!-- Anzeige-Modus: Antippbar zum Bearbeiten -->
+            <div v-else @click="editingField = r.key" class="text-sm font-medium text-slate-800 break-words cursor-pointer hover:text-blue-600 transition" :title="tr('review.editPrompt')">
+              {{ r.value }}
+            </div>
+          </div>
+
+          <!-- Direkt editierbare Sprachnotiz -->
+          <div v-if="generalNote !== undefined" class="py-2.5 space-y-1">
+            <div class="flex justify-between items-center">
+              <span class="text-[11px] text-slate-400 font-medium">🎙️ {{ tr('voice.note') }}</span>
+              <span class="text-[10px] text-slate-400">Tippen zum Bearbeiten</span>
+            </div>
+            <textarea v-model="generalNote" rows="2" class="inp text-sm bg-slate-50 border-slate-200" placeholder="Optionale Notiz..."></textarea>
+          </div>
+
+          <p v-if="!summaryRows.length && !generalNote" class="text-sm text-slate-400">{{ tr('review.nothingRecorded') }}</p>
+        </div>
+
+        <div v-if="activeIntegrations.length" class="card space-y-2">
+          <h3 class="text-sm font-bold">🔌 {{ tr('settings.integrations') }}</h3>
+          <label v-for="ig in activeIntegrations" :key="ig.id" class="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer">
+            <span class="text-xl">{{ ig.icon }}</span>
+            <span class="flex-1 text-sm font-semibold">{{ ig.name }}</span>
+            <input type="checkbox" :checked="integrationOn(ig.id)" @change="integrationChoice[ig.id] = $event.target.checked" class="w-6 h-6 rounded text-blue-600">
+          </label>
+        </div>
+
+        <div v-if="missingRequired.length" class="bg-amber-50 border border-amber-200 text-amber-900 text-xs rounded-xl p-3 space-y-2">
+          <div>{{ tr('review.missingRequired') }} <b>{{ missingRequired.map(f => f.label).join(', ') }}</b></div>
+          <button @click="step=3" type="button" class="font-semibold underline">{{ tr('review.backToForm') }}</button>
+        </div>
+
+        <!-- Die beiden Sende-Buttons -->
+        <div class="space-y-2.5 pt-1">
+          <!-- Button 1: Send to AI Assistant -->
+          <button @click="sendPayload('ai_assistant')" :disabled="isSubmitting || missingRequired.length>0" type="button" class="btn w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white py-3.5 text-sm font-semibold shadow-sm flex items-center justify-center gap-2 active:scale-[0.99] transition">
+            <span v-if="isSubmitting && submitMode==='ai_assistant'" class="inline-block animate-spin">⏳</span>
+            <span v-else>✨</span>
+            <span>{{ isSubmitting && submitMode==='ai_assistant' ? tr('common.sending') : tr('review.sendAi') }}</span>
+          </button>
+
+          <!-- Button 2: Send direct -->
+          <button @click="sendPayload('direct')" :disabled="isSubmitting || missingRequired.length>0" type="button" class="btn w-full bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white py-3 text-sm font-medium shadow-sm flex items-center justify-center gap-2 active:scale-[0.99] transition">
+            <span v-if="isSubmitting && submitMode==='direct'" class="inline-block animate-spin">⏳</span>
+            <span v-else>🚀</span>
+            <span>{{ isSubmitting && submitMode==='direct' ? tr('common.sending') : tr('review.sendDirect') }}</span>
+          </button>
+        </div>
+
+        <div v-if="sendError" class="bg-rose-50 text-rose-800 border border-rose-200 p-3 rounded-xl text-xs font-medium text-center">{{ sendError }}</div>
+      </template>
+    </section>
+  </main>
+
+  <!-- Navigation unten -->
+  <nav v-if="step>1 && !sent" class="fixed bottom-0 inset-x-0 z-20 bg-white/95 backdrop-blur border-t border-slate-200 p-3" style="padding-bottom:max(0.75rem, env(safe-area-inset-bottom))">
+    <div class="max-w-xl mx-auto flex gap-3">
+      <button @click="step--" type="button" class="btn flex-1 bg-slate-100 text-slate-700">‹ {{ tr('common.back') }}</button>
+      <button v-if="step===3" @click="step=4" type="button" class="btn flex-[2] bg-blue-600 text-white">{{ tr('common.next') }} ›</button>
+    </div>
+  </nav>
+
+  <!-- Scanner Overlay -->
+  <div v-if="scanning" class="fixed inset-0 z-[90] bg-black flex flex-col">
+    <div class="absolute top-4 right-4 z-10">
+      <button @click="stopScan" type="button" class="w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center font-bold text-lg border border-white/20 transition" :aria-label="tr('common.close')">✕</button>
+    </div>
+    <video ref="scanVideo" playsinline muted class="flex-1 min-h-0 w-full object-cover"></video>
+    <div class="absolute inset-0 pointer-events-none flex items-center justify-center pb-24"><div class="w-64 h-64 border-4 border-white/80 rounded-3xl"></div></div>
+    <div class="p-4 text-center space-y-3" style="padding-bottom:max(1rem, env(safe-area-inset-bottom))">
+      <p class="text-white text-sm">{{ tr('scanner.prompt') }}</p>
+      <button @click="stopScan" type="button" class="btn bg-white text-slate-900">{{ tr('common.cancel') }}</button>
+    </div>
+  </div>
+
+  <!-- Einstellungen Modal (z-40) -->
+  <div v-if="showSettings" class="fixed inset-0 z-40 bg-slate-100 overflow-y-auto">
+    <div class="max-w-xl mx-auto p-4 space-y-4 pb-12">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-bold">{{ tr('settings.title') }}</h2>
+        <button @click="closeSettings" type="button" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-semibold hover:bg-slate-800 transition">{{ tr('common.done') }}</button>
+      </div>
+
+      <!-- Benutzerverwaltung & Terminal-Station -->
+      <section class="card space-y-3 bg-gradient-to-br from-white to-blue-50/30">
+        <div class="flex items-center justify-between">
+          <h3 class="font-bold text-sm">👤 {{ tr('auth.userManagement') }}</h3>
+          <span v-if="currentUser" class="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">Angemeldet</span>
+          <span v-else class="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full">Nicht angemeldet</span>
+        </div>
+        
+        <div v-if="currentUser" class="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between gap-2">
+          <div class="min-w-0 pr-2">
+            <div class="text-sm font-bold text-slate-800 truncate">{{ currentUser.name }}</div>
+            <div class="text-[11px] text-slate-500">ID: <code>{{ currentUser.id }}</code> {{ currentUser.badge_id ? '· Badge: ' + currentUser.badge_id : '' }}</div>
+          </div>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button @click="switchUser" type="button" class="px-2.5 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-semibold active:scale-95 transition" title="Nutzer wechseln">
+              🔄 {{ tr('auth.switchUser') }}
+            </button>
+            <button @click="logout" type="button" class="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold active:scale-95 transition" title="Abmelden">
+              {{ tr('auth.logout') }}
+            </button>
+          </div>
+        </div>
+        <div v-else>
+          <button @click="openLogin" type="button" class="btn bg-blue-600 hover:bg-blue-700 text-white text-xs py-2.5 font-semibold shadow-sm">
+            🔒 {{ tr('auth.loginBtn') }}
+          </button>
+        </div>
+
+        <label class="flex items-start gap-3 p-2 text-xs text-slate-600 cursor-pointer">
+          <input type="checkbox" v-model="autoLogoutAfterSend" class="w-4 h-4 mt-0.5 rounded text-blue-600">
+          <span>{{ tr('auth.kioskMode') }}</span>
+        </label>
+      </section>
+
+      <!-- Sprache -->
+      <section class="card space-y-2">
+        <h3 class="font-bold text-sm">🌐 {{ tr('settings.language') }}</h3>
+        <div class="flex gap-2">
+          <button v-for="l in ['de','en']" :key="l" @click="lang=l" type="button" :class="lang===l ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'" class="btn flex-1">{{ l==='de' ? 'Deutsch' : 'English' }}</button>
+        </div>
+      </section>
+
+      <!-- Integrationen & dynamische Server-Module -->
+      <section class="card space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="font-bold text-sm">🔌 {{ tr('settings.integrations') }}</h3>
+          <button type="button" @click="discoverServerCapabilities" :disabled="isDiscovering || !config.n8nWebhookUrl" class="text-xs px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg font-semibold flex items-center gap-1 active:scale-95 transition" title="Server-Module abfragen">
+            <span :class="{'inline-block animate-spin': isDiscovering}">🔄</span>
+            <span>{{ isDiscovering ? 'Prüfe...' : 'Server abfragen' }}</span>
+          </button>
+        </div>
+        <p class="text-xs text-slate-500">{{ tr('settings.integrationsDesc') }}</p>
+
+        <!-- Dynamischer Server-Status / Capabilities Badge -->
+        <div v-if="serverCapabilities" class="p-2.5 bg-blue-50 border border-blue-200 rounded-xl text-xs space-y-1">
+          <div class="flex items-center justify-between font-bold text-blue-900">
+            <span>📡 Vom n8n-Server bereitgestellt:</span>
+            <span class="text-[10px] bg-blue-200/70 text-blue-800 px-2 py-0.5 rounded-full font-mono">{{ availableIntegrations.length }} Module</span>
+          </div>
+          <div class="text-[11px] text-blue-700">
+            Gefiltert nach Server-Freigaben (Sync: {{ new Date(serverCapabilities.updatedAt).toLocaleTimeString() }}).
+          </div>
+        </div>
+
+        <div class="space-y-2">
+          <label v-for="i in availableIntegrations" :key="i.id" class="flex items-center gap-3 p-3 border border-slate-200 rounded-xl hover:bg-slate-50 transition cursor-pointer">
+            <span class="text-xl">{{ i.icon }}</span>
+            <div class="flex-1">
+              <div class="text-sm font-semibold">{{ i.name }}</div>
+              <div class="text-[11px] text-slate-500">{{ tr(i.descKey || i.desc || '') }}</div>
+            </div>
+            <input type="checkbox" :value="i.id" v-model="enabledIntegrations" class="w-5 h-5 rounded text-blue-600">
+          </label>
+        </div>
+      </section>
+
+      <!-- GitHub Template-Bibliothek -->
+      <section class="card space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="font-bold text-sm">📚 {{ tr('settings.library') }}</h3>
+          <span v-if="library.length" class="text-[10px] bg-slate-100 text-slate-600 font-semibold px-2 py-0.5 rounded-full">{{ library.length }} {{ tr('common.templates') }}</span>
+        </div>
+        <p class="text-xs text-slate-500">
+          Vorlagen aus dem zentralen GitHub-Repository durchsuchen und auf diesem Gerät speichern.
+        </p>
+
+        <button @click="openLibraryModal" type="button" class="btn w-full bg-slate-900 hover:bg-slate-800 text-white font-medium flex items-center justify-center gap-2 py-2.5 shadow-sm active:scale-[0.99] transition">
+          <span v-if="libLoading" class="inline-block animate-spin">⏳</span>
+          <span v-else>🔍</span>
+          <span>{{ libLoading ? tr('common.loading') : (library.length ? tr('settings.browseLibraryCount', { count: library.length }) : tr('settings.browseLibrary')) }}</span>
+        </button>
+        <p v-if="libError" class="text-xs text-rose-600">{{ libError }}</p>
+
+        <details class="text-[11px] text-slate-500 pt-1">
+          <summary class="cursor-pointer text-slate-400 hover:text-blue-600 hover:underline">{{ tr('settings.repoSettings') }}</summary>
+          <div class="pt-2">
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">{{ tr('settings.repoLabel') }} <code>templates-index.json</code></label>
+            <input v-model="config.libraryUrl" type="url" class="inp text-xs py-1.5" placeholder="https://github.com/ThZobel/MetaFold-Templates">
+          </div>
+        </details>
+      </section>
+
+      <section class="card space-y-2">
+        <h3 class="font-bold text-sm">📂 {{ tr('category.loadFile') }}</h3>
+        <p class="text-xs text-slate-500">{{ tr('settings.loadJsonDesc') }}</p>
+        <label class="btn bg-slate-100 text-slate-700 border border-slate-300">{{ tr('settings.chooseJson') }}
+          <input type="file" accept=".json,application/json" multiple class="hidden" @change="onFiles">
+        </label>
+      </section>
+
+      <section class="card">
+        <h3 class="font-bold text-sm mb-2">{{ tr('settings.myTemplates') }} ({{ templates.length }})</h3>
+        <p v-if="!templates.length" class="text-xs text-slate-400">{{ tr('settings.noneSaved') }}</p>
+        <div v-for="tpl in templates" :key="tpl.id" class="flex items-center justify-between gap-2 py-2 border-b border-slate-100 last:border-0">
+          <div class="min-w-0">
+            <div class="text-sm truncate">{{ tpl.name }}</div>
+            <div class="text-[11px] text-slate-400">{{ tpl.category }}</div>
+          </div>
+          <div class="flex items-center gap-1">
+            <button @click="openRenameTemplate(tpl)" type="button" class="text-slate-400 hover:text-blue-600 px-2 py-1 text-xs" :title="tr('common.rename')">✏️</button>
+            <button @click="removeTemplate(tpl.id)" type="button" class="text-rose-600 hover:text-rose-700 px-2 py-1 text-sm font-bold" :aria-label="tr('common.remove')">✕</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Standard-Kategorien (Desktop Mapping) -->
+      <section class="card space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="font-bold text-sm">🏷️ {{ tr('settings.categoriesTitle') }}</h3>
+          <span class="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-full">Lokal</span>
+        </div>
+        <p class="text-xs text-slate-500">
+          {{ tr('settings.categoriesDesc') }}
+        </p>
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <div>
+            <label class="block text-[11px] text-slate-500 mb-1">Kategorie 1</label>
+            <input v-model="categoryNames.category1" type="text" class="inp py-1.5 text-xs" @change="onCategorySettingChange('category1')">
+          </div>
+          <div>
+            <label class="block text-[11px] text-slate-500 mb-1">Kategorie 2</label>
+            <input v-model="categoryNames.category2" type="text" class="inp py-1.5 text-xs" @change="onCategorySettingChange('category2')">
+          </div>
+          <div>
+            <label class="block text-[11px] text-slate-500 mb-1 font-semibold text-blue-700">Kategorie 3 (Microscopy)</label>
+            <input v-model="categoryNames.category3" type="text" class="inp py-1.5 text-xs border-blue-300 focus:ring-blue-500" @change="onCategorySettingChange('category3')">
+          </div>
+          <div>
+            <label class="block text-[11px] text-slate-500 mb-1">Kategorie 4</label>
+            <input v-model="categoryNames.category4" type="text" class="inp py-1.5 text-xs" @change="onCategorySettingChange('category4')">
+          </div>
+        </div>
+      </section>
+
+      <!-- n8n Webhook Konfiguration & Verbindungstest -->
+      <section class="card space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="font-bold text-sm">🔗 n8n Webhook (Metadaten-Übertragung)</h3>
+          <span v-if="config.n8nWebhookUrl" class="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-full">Konfiguriert</span>
+          <span v-else class="text-[10px] bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded-full">Erforderlich</span>
+        </div>
+        <p class="text-xs text-slate-500">
+          Zentraler Webhook-Endpunkt für Benutzer-Authentifizierung (NFC/PIN) und eLabFTW-Übertragung.
+        </p>
+        <input v-model="config.n8nWebhookUrl" type="url" class="inp text-xs font-mono" placeholder="https://n8n.your-lab.de/webhook/metafold-test">
+
+        <div class="flex items-center gap-2 pt-1">
+          <button type="button" @click="testN8nConnection" :disabled="isTestingN8n || !config.n8nWebhookUrl" class="btn flex-1 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white text-xs py-2.5 font-semibold flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition">
+            <span v-if="isTestingN8n" class="inline-block animate-spin">⏳</span>
+            <span v-else>🔌</span>
+            <span>{{ isTestingN8n ? 'Prüfe Verbindung...' : 'Verbindung testen' }}</span>
+          </button>
+        </div>
+
+        <!-- Feedback Verbindungstest -->
+        <div v-if="n8nTestStatus" :class="n8nTestStatus.ok ? 'bg-emerald-50 border-emerald-300 text-emerald-900' : 'bg-rose-50 border-rose-300 text-rose-900'" class="p-3 border rounded-xl text-xs space-y-1 animate-in fade-in">
+          <div class="font-bold flex items-center gap-1.5">
+            <span>{{ n8nTestStatus.ok ? '✅' : '❌' }}</span>
+            <span>{{ n8nTestStatus.message }}</span>
+          </div>
+          <p v-if="n8nTestStatus.details" class="text-[11px] whitespace-pre-line leading-relaxed opacity-90">
+            {{ n8nTestStatus.details }}
+          </p>
+        </div>
+
+        <details class="text-[11px] text-slate-500 pt-1">
+          <summary class="cursor-pointer text-slate-400 hover:text-blue-600 hover:underline">💡 Wichtig: Test- vs. Produktiv-URL in n8n</summary>
+          <div class="mt-2 p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 text-[11px] text-slate-600">
+            <p><b>1. Test-URL</b> (<code>.../webhook-test/metafold-test</code>):</p>
+            <p class="text-slate-500 pl-2">Funktioniert nur, wenn in n8n gerade auf <i>"Test step"</i> oder <i>"Execute workflow"</i> geklickt wurde.</p>
+            <p><b>2. Produktions-URL</b> (<code>.../webhook/metafold-test</code>):</p>
+            <p class="text-slate-500 pl-2">Funktioniert dauerhaft im Hintergrund. <b>Wichtig:</b> Der Workflow in n8n muss oben rechts auf <b>"Active"</b> geschaltet sein!</p>
+          </div>
+        </details>
+      </section>
+
+      <!-- n8n Whisper Webhook -->
+      <section class="card space-y-2 bg-gradient-to-br from-white to-blue-50/50">
+        <div class="flex items-center justify-between">
+          <h3 class="font-bold text-sm text-blue-900">✨ n8n Whisper Webhook (Audio-Transkription)</h3>
+          <span class="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-full">Bilingual</span>
+        </div>
+        <p class="text-xs text-slate-500">
+          {{ tr('settings.whisperDesc') }}
+        </p>
+        <input v-model="config.whisperWebhookUrl" type="url" class="inp" placeholder="https://n8n.your-lab.de/webhook/whisper">
+        <p class="text-[11px] text-slate-400">
+          Wird kein separater Whisper-Endpunkt eingetragen, kann auch der Haupt-Webhook genutzt werden.
+        </p>
+      </section>
+
+      <!-- Fertig-Button unten für Vollbild-Fenster -->
+      <div class="pt-2 pb-6">
+        <button @click="closeSettings" type="button" class="btn w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-3.5 shadow-md flex items-center justify-center gap-2 text-sm active:scale-[0.99] transition">
+          <span>✓</span>
+          <span>{{ tr('common.done') }}</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Umbenennen (Kategorien & Templates) (z-[60]) -->
+  <div v-if="renameModal.show" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" @click.self="closeRename">
+    <div class="bg-white rounded-2xl p-5 w-full max-w-sm shadow-2xl space-y-4 border border-slate-200 relative">
+      <button type="button" @click="closeRename" class="absolute top-4 right-4 w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 flex items-center justify-center text-xs font-bold transition" :aria-label="tr('common.close')">✕</button>
+      <div>
+        <div class="flex items-center gap-2 text-blue-600 font-bold text-sm mb-1 pr-6">
+          <span>✏️</span>
+          <span>{{ renameModal.type === 'category' ? tr('rename.categoryTitle') : tr('rename.templateTitle') }}</span>
+        </div>
+        <p class="text-xs text-slate-500">
+          {{ tr('rename.hint') }}
+        </p>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">
+          {{ renameModal.type === 'category' ? tr('rename.categoryLabel') : tr('rename.templateLabel') }}
+        </label>
+        <input ref="renameInputRef" v-model="renameModal.name" type="text" class="inp" @keydown.enter.prevent="saveRename" autofocus>
+      </div>
+
+      <!-- Falls Template: Option zum Ändern der Kategorie -->
+      <div v-if="renameModal.type === 'template'">
+        <label class="block text-xs font-semibold text-slate-700 mb-1">{{ tr('rename.categorySelect') }}</label>
+        <select v-model="renameModal.category" class="inp">
+          <option v-for="cat in availableCategories" :key="cat" :value="cat">{{ cat }}</option>
+        </select>
+      </div>
+
+      <div class="flex gap-2 pt-1">
+        <button type="button" @click="closeRename" class="btn flex-1 bg-slate-100 text-slate-700">
+          {{ tr('common.cancel') }}
+        </button>
+        <button type="button" @click="saveRename" :disabled="!renameModal.name.trim()" class="btn flex-1 bg-blue-600 text-white disabled:opacity-40">
+          {{ tr('common.save') }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Login / Terminal Authentifizierung (NFC / QR / PIN) (z-[60]) -->
+  <div v-if="showLoginModal" class="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto" @click.self="closeLogin">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-5 sm:p-6 shadow-2xl border border-slate-200 text-center space-y-4 my-auto animate-in fade-in zoom-in-95 duration-150 relative">
+      
+      <!-- Obere Leiste: Schnelleinstieg in Einstellungen & Schließen-Button -->
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+          <span>🏢</span> MetaFold Terminal
+        </span>
+        <div class="flex items-center gap-1.5">
+          <button type="button" @click="openSettings(); showLoginModal = false;" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1 active:scale-95 transition" title="Einstellungen öffnen">
+            <span>⚙️</span>
+            <span>{{ tr('common.settings') }}</span>
+          </button>
+          <button type="button" @click="closeLogin" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 flex items-center justify-center text-xs font-bold active:scale-95 transition" title="Schließen" :aria-label="tr('common.close')">
+            ✕
+          </button>
+        </div>
+      </div>
+
+      <!-- Warnung & Einrichtungs-Hinweis, falls n8n Webhook noch nicht konfiguriert ist -->
+      <div v-if="!config.n8nWebhookUrl" class="p-3.5 bg-amber-50 border border-amber-300 rounded-2xl text-left space-y-2">
+        <div class="flex items-center gap-2 text-amber-900 font-bold text-xs">
+          <span>⚠️</span>
+          <span>n8n Webhook noch nicht eingerichtet</span>
+        </div>
+        <p class="text-[11px] text-amber-800 leading-relaxed">
+          Vor der ersten Anmeldung muss die n8n Webhook-URL hinterlegt werden, um Ausweise und PINs online zu prüfen.
+        </p>
+        <button type="button" @click="openSettings(); showLoginModal = false;" class="btn w-full bg-amber-600 hover:bg-amber-700 text-white text-xs py-2 font-semibold shadow-sm">
+          ⚙️ Jetzt in Einstellungen eintragen
+        </button>
+      </div>
+
+      <div>
+        <div class="w-14 h-14 mx-auto rounded-2xl bg-blue-100 border border-blue-200 flex items-center justify-center text-3xl mb-2 shadow-sm">
+          {{ loginStep === 1 ? '🪪' : '🔐' }}
+        </div>
+        <h2 class="text-lg font-bold text-slate-900">{{ loginStep === 1 ? 'Ausweis / Token scannen' : tr('auth.title') }}</h2>
+        <p class="text-xs text-slate-500 mt-0.5">
+          {{ loginStep === 1 ? 'NFC-Chip anhalten oder QR-Code scannen (Zebra-Scanner unterstützt)' : tr('auth.pinPrompt') }}
+        </p>
+      </div>
+
+      <!-- Schritt 1: NFC oder QR-Code Scan -->
+      <div v-if="loginStep === 1" class="space-y-3 text-left">
+        <div class="grid grid-cols-2 gap-2 pt-1">
+          <button type="button" @click="startLoginQrScan" class="btn py-3 px-3 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 text-xs font-bold flex flex-col items-center justify-center gap-1 shadow-sm active:scale-95 transition">
+            <span class="text-xl">📷</span>
+            <span>QR scannen</span>
+          </button>
+          <button type="button" @click="startWebNfcScan" :class="isNfcListening ? 'bg-emerald-100 text-emerald-900 border-emerald-400 animate-pulse' : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-200'" class="btn py-3 px-3 text-xs font-bold border flex flex-col items-center justify-center gap-1 shadow-sm active:scale-95 transition">
+            <span class="text-xl">📶</span>
+            <span>{{ isNfcListening ? 'NFC aktiv (anhalten)...' : 'NFC scannen' }}</span>
+          </button>
+        </div>
+
+        <!-- Zebra Hardware-Scanner / Barcode / NFC Eingang -->
+        <div class="pt-2 border-t border-slate-100 space-y-1.5">
+          <div class="flex items-center justify-between">
+            <label class="block text-xs font-semibold text-slate-700">Hardware-Scanner (Zebra / Barcode / NFC)</label>
+            <span class="text-[10px] text-blue-600 font-medium">Auto-Fokus</span>
+          </div>
+          <div class="relative">
+            <input ref="loginInputRef" v-model="loginIdentifier" type="text"
+              enterkeyhint="done"
+              @keydown.enter.prevent="proceedToPin"
+              placeholder="Barcode / NFC Token scannen..."
+              class="inp pr-10 text-xs font-mono tracking-wider bg-slate-50 border-slate-300 focus:border-blue-500">
+            <button v-if="loginIdentifier" @click="loginIdentifier = ''" type="button" class="absolute right-2.5 top-2.5 w-6 h-6 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600">✕</button>
+          </div>
+          <p class="text-[11px] text-slate-400">
+            💡 Der integrierte Zebra DataWedge Scanner tippt den Chip-Code automatisch ein und springt direkt zur PIN.
+          </p>
+        </div>
+
+        <!-- Buttons: Abbrechen & Weiter (PIN) -->
+        <div class="flex gap-2 pt-1 mt-2">
+          <button type="button" @click="closeLogin" class="btn flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-3 text-xs">
+            {{ tr('common.cancel') }}
+          </button>
+          <button type="button" @click="proceedToPin" :disabled="!loginIdentifier.trim()" class="btn flex-[2] bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-semibold shadow-sm py-3 text-xs">
+            {{ tr('common.next') }} (PIN) ›
+          </button>
+        </div>
+      </div>
+
+      <!-- Schritt 2: PIN-Eingabe Pad -->
+      <div v-else class="space-y-3">
+        <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-left">
+          <div class="min-w-0 pr-2">
+            <p class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Ausweis erfasst</p>
+            <p class="text-xs font-mono font-bold text-slate-800 truncate">Token: {{ loginIdentifier }}</p>
+          </div>
+          <button type="button" @click="loginStep = 1; loginPin = ''; loginError = '';" class="text-xs text-blue-600 font-semibold hover:underline">
+            Anderer Ausweis
+          </button>
+        </div>
+
+        <!-- PIN Dots Indicator -->
+        <div class="flex justify-center items-center gap-3 py-2">
+          <div v-for="i in 4" :key="i" :class="loginPin.length >= i ? 'bg-blue-600 scale-110 shadow-sm' : 'bg-slate-200'" class="w-4 h-4 rounded-full transition-all duration-150"></div>
+        </div>
+
+        <div v-if="loginError" class="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-medium text-left">
+          ⚠️ {{ loginError }}
+        </div>
+
+        <!-- On-Screen Numeric Keypad -->
+        <div class="grid grid-cols-3 gap-2 pt-1 max-w-[240px] mx-auto select-none">
+          <button v-for="d in [1,2,3,4,5,6,7,8,9]" :key="d" type="button" @click="pressPinDigit(d)" class="h-12 rounded-xl bg-slate-100 hover:bg-slate-200 text-lg font-bold text-slate-800 active:scale-90 transition">
+            {{ d }}
+          </button>
+          <button type="button" @click="loginPin = ''; loginError = '';" class="h-12 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-500 active:scale-90 transition">
+            C
+          </button>
+          <button type="button" @click="pressPinDigit(0)" class="h-12 rounded-xl bg-slate-100 hover:bg-slate-200 text-lg font-bold text-slate-800 active:scale-90 transition">
+            0
+          </button>
+          <button type="button" @click="loginPin = loginPin.slice(0, -1)" class="h-12 rounded-xl bg-slate-100 hover:bg-slate-200 text-base font-semibold text-slate-600 active:scale-90 transition">
+            ⌫
+          </button>
+        </div>
+
+        <!-- Buttons: Abbrechen & Anmelden -->
+        <div class="flex gap-2 pt-1 mt-2">
+          <button type="button" @click="closeLogin" class="btn flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-3 text-xs">
+            {{ tr('common.cancel') }}
+          </button>
+          <button type="button" @click="submitLogin" :disabled="loginPin.length < 4 || isLoggingIn" class="btn flex-[2] bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-semibold shadow-sm flex items-center justify-center gap-1.5 py-3 text-xs">
+            <span v-if="isLoggingIn" class="inline-block animate-spin">⏳</span>
+            <span>{{ isLoggingIn ? tr('common.sending') : tr('auth.loginBtn') }}</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
+        <button type="button" @click="closeLogin" class="hover:text-slate-600 font-medium flex items-center gap-1">
+          <span>✕</span>
+          <span>{{ tr('common.close') }}</span>
+        </button>
+        <button type="button" @click="openSettings(); showLoginModal = false;" class="hover:text-blue-600 flex items-center gap-1 font-medium">
+          <span>⚙️</span>
+          <span>{{ tr('settings.n8nWebhook') }}</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Benutzer-Menü / Schnellwechsel (z-[60]) -->
+  <div v-if="showUserMenuModal" class="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" @click.self="showUserMenuModal = false">
+    <div class="bg-white rounded-2xl p-5 w-full max-w-xs shadow-2xl border border-slate-200 text-center space-y-3 relative">
+      <button type="button" @click="showUserMenuModal = false" class="absolute top-4 right-4 w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 flex items-center justify-center text-xs font-bold transition" :aria-label="tr('common.close')">✕</button>
+      <div class="w-12 h-12 mx-auto rounded-full bg-blue-100 text-blue-700 text-2xl flex items-center justify-center">👤</div>
+      <div>
+        <h3 class="font-bold text-base text-slate-900">{{ currentUser?.name }}</h3>
+        <p class="text-xs text-slate-500">ID: <code>{{ currentUser?.id }}</code></p>
+      </div>
+      <div class="space-y-2 pt-2">
+        <button type="button" @click="switchUser" class="btn w-full bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs py-2.5 font-semibold">
+          🔄 {{ tr('auth.switchUser') }}
+        </button>
+        <button type="button" @click="logout" class="btn w-full bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs py-2.5 font-semibold border border-rose-200">
+          🔒 {{ tr('auth.logout') }}
+        </button>
+        <button type="button" @click="showUserMenuModal = false" class="btn w-full bg-white hover:bg-slate-50 text-slate-500 text-xs py-2">
+          {{ tr('common.cancel') }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Vorlagen aus GitHub-Bibliothek auswählen (Multi-Select) (z-[60]) -->
+  <div v-if="showLibraryModal" class="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" @click.self="showLibraryModal = false">
+    <div class="bg-white rounded-3xl max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      
+      <!-- Modal Header -->
+      <div class="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+        <div>
+          <h3 class="font-bold text-base text-slate-900 flex items-center gap-1.5">
+            <span>📚</span>
+            <span>{{ tr('settings.libraryModalTitle') }}</span>
+          </h3>
+          <p class="text-xs text-slate-500 mt-0.5">{{ tr('settings.libraryModalDesc') }}</p>
+        </div>
+        <button type="button" @click="showLibraryModal = false" class="w-8 h-8 rounded-full bg-slate-200 hover:bg-slate-300 flex items-center justify-center text-slate-600 font-bold transition">✕</button>
+      </div>
+
+      <!-- Suche & Schnellfilter -->
+      <div class="p-3 border-b border-slate-100 bg-white space-y-2">
+        <div class="relative flex items-center">
+          <span class="absolute left-3 text-slate-400 pointer-events-none text-sm select-none flex items-center justify-center">🔍</span>
+          <input v-model="librarySearch" type="text" :placeholder="tr('settings.librarySearchPlaceholder')" class="w-full pl-9 pr-9 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 transition">
+          <button v-if="librarySearch" @click="librarySearch = ''" type="button" class="absolute right-2.5 w-5 h-5 rounded-full flex items-center justify-center text-xs text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition">✕</button>
+        </div>
+        <div class="flex items-center justify-between text-xs text-slate-500 px-1">
+          <span>{{ tr('settings.libraryFound', { count: filteredLibrary.length }) }}</span>
+          <div class="flex items-center gap-2">
+            <button type="button" @click="selectAllUnsaved" class="text-blue-600 font-medium hover:underline">{{ tr('settings.selectAllNew') }}</button>
+            <span>·</span>
+            <button type="button" @click="selectedLibraryPaths = []" class="text-slate-400 hover:underline">{{ tr('settings.selectNone') }}</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Liste der Vorlagen mit Checkboxen -->
+      <div class="flex-1 overflow-y-auto p-3 space-y-2">
+        <div v-if="libLoading" class="text-center py-10 space-y-2">
+          <div class="inline-block animate-spin text-2xl">⏳</div>
+          <p class="text-xs text-slate-400">{{ tr('common.loading') }}</p>
+        </div>
+        <div v-else-if="!filteredLibrary.length" class="text-center py-10 text-xs text-slate-400">
+          {{ tr('alerts.noValidTemplate') }}
+        </div>
+
+        <label v-for="e in filteredLibrary" :key="e.path" 
+          :class="hasTemplate(e.path) ? 'bg-slate-50/70 border-slate-200 opacity-60 cursor-default' : (selectedLibraryPaths.includes(e.path) ? 'bg-blue-50/80 border-blue-400 ring-1 ring-blue-300 cursor-pointer' : 'bg-white hover:bg-slate-50 border-slate-200 cursor-pointer')" 
+          class="flex items-center gap-3 p-3 rounded-2xl border transition select-none">
+          
+          <input type="checkbox" 
+            :value="e.path" 
+            v-model="selectedLibraryPaths" 
+            :disabled="hasTemplate(e.path)"
+            class="w-5 h-5 rounded-lg border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer disabled:opacity-30">
+          
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-semibold text-slate-800 truncate">{{ e.name }}</span>
+              <span v-if="hasTemplate(e.path)" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 shrink-0">✓ {{ tr('settings.alreadySaved') }}</span>
+            </div>
+            <div class="text-[11px] text-slate-500 mt-0.5 flex items-center gap-2">
+              <span class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 font-medium">{{ prettyCat(e.category) }}</span>
+              <span>·</span>
+              <span>{{ e.fieldsCount }} {{ tr('common.fields') }}</span>
+            </div>
+          </div>
+        </label>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="p-3 sm:p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-3">
+        <button type="button" @click="showLibraryModal = false" class="btn bg-white border border-slate-200 text-slate-700 py-2.5 px-4 text-xs font-semibold">
+          {{ tr('common.cancel') }}
+        </button>
+
+        <button type="button" 
+          @click="addSelectedFromLibrary" 
+          :disabled="!selectedLibraryPaths.length || isAddingLibrary" 
+          class="btn bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white py-2.5 px-5 text-xs font-semibold flex items-center gap-2 shadow-sm">
+          <span v-if="isAddingLibrary" class="inline-block animate-spin">⏳</span>
+          <span v-else>＋</span>
+          <span>{{ isAddingLibrary ? tr('settings.addingTemplates') : (selectedLibraryPaths.length > 0 ? tr('settings.addSelected', { count: selectedLibraryPaths.length }) : tr('settings.addSelectedEmpty')) }}</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Main Application Script (ES Module) -->
+<script type="module" src="js/app.js"></script>
+
+<!-- Optional PWA Service Worker Registration -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch((err) => {
+        console.warn('SW registration skipped:', err);
+      });
+    });
+  }
+</script>
+</body>
+</html>
