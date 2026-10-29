@@ -1,0 +1,125 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.elab_host || 'https://elab.uni-muenster.de' }}/api/v2/experiments_templates/{{ $json.templateId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ $json.elab_api_key }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "elab-get-details-http",
+      "name": "HTTP Request - Get eLabFTW Template Details",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -200,
+        1740
+      ],
+      "notesInFlow": true,
+      "notes": "Ruft /api/v2/experiments_templates/{templateId} ab"
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $input.first().json;\nlet tpl = res.body || res;\n\nif (tpl && typeof tpl.metadata === 'string') {\n  try {\n    tpl.metadata = JSON.parse(tpl.metadata);\n  } catch (e) {\n    tpl.metadata = {};\n  }\n}\n\nreturn {\n  json: {\n    status: 'success',\n    server_time: new Date().toISOString(),\n    template: tpl\n  }\n};"
+      },
+      "id": "elab-format-details-code",
+      "name": "Format Template Details",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        40,
+        1740
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization, X-Requested-With, Accept"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, GET, OPTIONS"
+              }
+            ]
+          }
+        }
+      },
+      "id": "elab-respond-details",
+      "name": "Respond Template Details",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        280,
+        1740
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### 🧪 Modul: get_elabftw_template_details\n\n**Eingang:** `action === 'get_elabftw_template_details'`\n\n1. Ruft eLabFTW `GET /api/v2/experiments_templates/{{ $json.templateId }}` ab.\n2. Extrahiert und parst die extra_fields-Metadaten.\n3. Sendet `{ status: 'success', template: {...} }` an die WebApp zurück.",
+        "height": 220,
+        "width": 460,
+        "color": 6
+      },
+      "id": "sticky-get-elabftw-details",
+      "name": "Sticky Note - Modul get_elabftw_template_details",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -200,
+        1500
+      ]
+    }
+  ],
+  "connections": {
+    "HTTP Request - Get eLabFTW Template Details": {
+      "main": [
+        [
+          {
+            "node": "Format Template Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Template Details": {
+      "main": [
+        [
+          {
+            "node": "Respond Template Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

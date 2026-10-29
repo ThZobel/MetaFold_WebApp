@@ -24,27 +24,27 @@
           }
         }
       },
-      "id": "31f0f95d-02fa-4227-b505-4567b9eedbf0",
-      "name": "Webhook In",
+      "id": "a5a3015e-296a-41ca-9a45-fcb83fed31fe",
+      "name": "Webhook In1",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        -1180,
-        380
+        -1632,
+        2144
       ],
       "webhookId": "metafold-test"
     },
     {
       "parameters": {
-        "jsCode": "const rawInput = $input.first().json;\nlet rawBody = rawInput.body !== undefined ? rawInput.body : rawInput;\nlet body = {};\nif (typeof rawBody === 'string') {\n  try { body = JSON.parse(rawBody); } catch (e) { body = {}; }\n} else if (typeof rawBody === 'object' && rawBody !== null) {\n  body = rawBody;\n}\nconst action = body.action || 'direct';\n\n// Ping / Verbindungstest aus PWA-Einstellungen\nif (action === 'ping' || action === 'test') {\n  return {\n    json: {\n      is_login: true,\n      status: 'success',\n      message: '✓ Verbindung zu n8n erfolgreich! Webhook ist aktiv und antwortet.'\n    }\n  };\n}\n\n// =========================================================================\n// 👥 BENUTZER-TABELLE (Proof of Principle)\n// Hier können Benutzer, PINs, NFC/QR-IDs und API-Keys direkt gepflegt werden:\n// =========================================================================\nconst USERS_DB = [\n  {\n    id: 'tzobel',\n    name: 'Dr. Thomas Zobel',\n    badge_id: 'USER001',                   // NFC-UID oder QR-Code (z.B. USER001)\n    pin: '1234',                          // 4-stellige PIN\n    elab_api_key: 'DEIN_ELABFTW_API_KEY', // eLabFTW API Key dieses Benutzers\n    elab_host: 'https://elab.uni-muenster.de',\n    unigpt_api_key: ''                    // Optional: falls eigener uniGPT Key\n  },\n  {\n    id: 'mmustermann',\n    name: 'Max Mustermann',\n    badge_id: 'USER002',\n    pin: '0000',\n    elab_api_key: 'MAX_ELABFTW_API_KEY',\n    elab_host: 'https://elab.uni-muenster.de',\n    unigpt_api_key: ''\n  },\n  {\n    id: 'lab_guest',\n    name: 'Gastforscher / Praktikant',\n    badge_id: 'GUEST01',\n    pin: '9999',\n    elab_api_key: 'GUEST_ELABFTW_API_KEY',\n    elab_host: 'https://elab.uni-muenster.de',\n    unigpt_api_key: ''\n  }\n];\n\n// =========================================================================\n// 🧪 eLabFTW TEMPLATE HUB PROXY / MOCK\n// =========================================================================\nconst ELAB_TEMPLATES_CATALOG = [\n  {\n    id: 101,\n    title: 'Standard Mikroskopie Protokoll (eLabFTW)',\n    category: 'Microscopy',\n    description: 'Offizielle Institutsvorlage für Konfokalmikroskopie & Bildaufnahme',\n    metadata: {\n      extra_fields: {\n        'Mikroskop': { type: 'select', options: ['Zeiss LSM 980', 'Leica SP8', 'Olympus SpinSR'], required: true },\n        'Objektiv': { type: 'select', options: ['20x Luft', '40x Öl', '63x Öl Plan-Apo'], required: true },\n        'Laser-Wellenlänge': { type: 'text', description: 'z.B. 405nm, 488nm, 561nm', required: true },\n        'Fluorophore': { type: 'text', description: 'DAPI, GFP, mCherry etc.' },\n        'Immersionsöl': { type: 'checkbox', value: true },\n        'Proben-ID': { type: 'text', required: true }\n      }\n    }\n  },\n  {\n    id: 102,\n    title: 'Live-Cell Imaging (eLabFTW)',\n    category: 'Live Cell',\n    description: 'Langzeit-Messung mit Klimakammer & CO2-Kontrolle',\n    metadata: {\n      extra_fields: {\n        'Zelllinie': { type: 'text', required: true },\n        'Passage': { type: 'number', required: false },\n        'Temperatur (°C)': { type: 'number', value: 37, required: true },\n        'CO2 Gehalt (%)': { type: 'number', value: 5, required: true },\n        'Intervall (min)': { type: 'number', value: 10, required: true },\n        'Gesamtdauer (h)': { type: 'number', value: 24, required: true }\n      }\n    }\n  },\n  {\n    id: 103,\n    title: 'Antikörper Färbung & Immunfluoreszenz (eLabFTW)',\n    category: 'Histology',\n    description: 'Standard-Färbeprotokoll für Gewebeschnitte',\n    metadata: {\n      extra_fields: {\n        'Primärantikörper': { type: 'text', required: true },\n        'Verdünnung Primär': { type: 'text', value: '1:500' },\n        'Sekundärantikörper': { type: 'text', required: true },\n        'Verdünnung Sekundär': { type: 'text', value: '1:1000' },\n        'Inkubationszeit': { type: 'text', value: 'Overnight 4°C' }\n      }\n    }\n  },\n  {\n    id: 104,\n    title: 'Molekularbiologie: PCR & Gelelektrophorese (eLabFTW)',\n    category: 'General',\n    description: 'Standard-PCR Protokoll mit Annealing-Temperatur und Zyklenzahl',\n    metadata: {\n      extra_fields: {\n        'Target-Gen': { type: 'text', required: true },\n        'Primer Vorwärts': { type: 'text', required: true },\n        'Primer Rückwärts': { type: 'text', required: true },\n        'Annealing Temperatur (°C)': { type: 'number', value: 58, required: true },\n        'Zyklenzahl': { type: 'number', value: 35, required: true },\n        'Polymerase': { type: 'select', options: ['Phusion High-Fidelity', 'Taq Standard', 'Q5 Hot Start'] }\n      }\n    }\n  }\n];\n\nif (action === 'get_elabftw_templates') {\n  return {\n    json: {\n      is_login: true,\n      status: 'success',\n      templates: ELAB_TEMPLATES_CATALOG\n    }\n  };\n}\n\nif (action === 'get_elabftw_template_details') {\n  const tplId = body.templateId;\n  const found = ELAB_TEMPLATES_CATALOG.find(t => String(t.id) === String(tplId));\n  return {\n    json: {\n      is_login: true,\n      status: 'success',\n      template: found || null\n    }\n  };\n}\n\n// Helper: Suche User STRENG nach physischer Badge-ID (NFC/QR)\nfunction findUserByBadge(badgeQuery) {\n  if (!badgeQuery) return null;\n  const q = String(badgeQuery).trim().toLowerCase();\n  return USERS_DB.find(u => u.badge_id && u.badge_id.toLowerCase() === q) || null;\n}\n\n// 1. FALL: Login-Anfrage aus der PWA (Zwingend NFC-Tag / QR-Code + PIN)\nif (action === 'login') {\n  const badgeId = body.identifier || body.badge_id || '';\n  const pin = String(body.pin || '').trim();\n  const user = findUserByBadge(badgeId);\n\n  if (!user) {\n    return {\n      json: {\n        is_login: true,\n        status: 'error',\n        authenticated: false,\n        message: `NFC/QR-Ausweis „${badgeId}“ nicht registriert. Bitte physischen NFC-Chip oder QR-Code scannen.`\n      }\n    };\n  }\n\n  if (user.pin !== pin) {\n    return {\n      json: {\n        is_login: true,\n        status: 'error',\n        authenticated: false,\n        message: 'Falsche PIN. Bitte erneut versuchen.'\n      }\n    };\n  }\n\n  // Erfolgreich authentifiziert!\n  return {\n    json: {\n      is_login: true,\n      status: 'success',\n      authenticated: true,\n      message: `Willkommen, ${user.name}! Authentifizierung erfolgreich.`,\n      user: {\n        id: user.id,\n        name: user.name,\n        badge_id: user.badge_id\n      }\n    }\n  };\n}\n\n// 2. FALL: Reguläre Aktion (direct, ai_assistant, approve_and_create)\nconst auth = body.auth || {};\nconst authId = auth.userId || body.userId;\nconst authBadge = auth.badge_id;\nconst authPin = String(auth.pin || '').trim();\nconst user = USERS_DB.find(u => \n  (authBadge && u.badge_id && u.badge_id.toLowerCase() === String(authBadge).toLowerCase()) ||\n  (authId && u.id.toLowerCase() === String(authId).toLowerCase())\n);\n\nif (!user || user.pin !== authPin) {\n  return {\n    json: {\n      is_auth_error: true,\n      status: 'error',\n      authenticated: false,\n      message: 'Authentifizierung fehlgeschlagen: Bitte per NFC/QR-Ausweis am Terminal anmelden.'\n    }\n  };\n}\n\n// Gültiger Benutzer: Seine API Keys in den n8n-Workflow einbetten!\nreturn {\n  json: {\n    is_login: false,\n    is_auth_error: false,\n    ...body,\n    user: {\n      id: user.id,\n      name: user.name,\n      badge_id: user.badge_id\n    },\n    elab_api_key: user.elab_api_key || '',\n    elab_host: user.elab_host || 'https://elab.uni-muenster.de',\n    unigpt_api_key: user.unigpt_api_key || ''\n  }\n};"
+        "jsCode": "const rawInput = $input.first().json;\nlet rawBody = rawInput.body !== undefined ? rawInput.body : rawInput;\nlet body = {};\nif (typeof rawBody === 'string') {\n  try { body = JSON.parse(rawBody); } catch (e) { body = {}; }\n} else if (typeof rawBody === 'object' && rawBody !== null) {\n  body = rawBody;\n}\nconst action = body.action || 'direct';\n\n// Ping / Verbindungstest aus PWA-Einstellungen\nif (action === 'ping' || action === 'test') {\n  return {\n    json: {\n      is_login: true,\n      status: 'success',\n      message: '✓ Verbindung zu n8n erfolgreich! Webhook ist aktiv und antwortet.'\n    }\n  };\n}\n\n// =========================================================================\n// 👥 BENUTZER-TABELLE (Proof of Principle)\n// Hier können Benutzer, PINs, NFC/QR-IDs und API-Keys direkt gepflegt werden:\n// =========================================================================\nconst USERS_DB = [\n  {\n    id: 'tzobel',\n    name: 'Dr. Thomas Zobel',\n    badge_id: '04:0c:2d:52:4a:51:80',                   // NFC-UID oder QR-Code (z.B. USER001)\n    pin: '1234',                          // 4-stellige PIN\n    elab_api_key: '82-4136ee1152d65493b001733c76424aaea1815aad63a8e96d48c4f1b95e0550fcd37133476761d16b135282', // eLabFTW API Key dieses Benutzers\n    elab_host: 'https://elab.uni-muenster.de',\n    unigpt_api_key: 'sk-QQHpbSX4qn3G20v8SG-OmQ'                    // Optional: falls eigener uniGPT Key\n  },\n  {\n    id: 'mmustermann',\n    name: 'Max Mustermann',\n    badge_id: 'USER002',\n    pin: '0000',\n    elab_api_key: 'MAX_ELABFTW_API_KEY',\n    elab_host: 'https://elab.uni-muenster.de',\n    unigpt_api_key: ''\n  },\n  {\n    id: 'lab_guest',\n    name: 'Gastforscher / Praktikant',\n    badge_id: 'GUEST01',\n    pin: '9999',\n    elab_api_key: 'GUEST_ELABFTW_API_KEY',\n    elab_host: 'https://elab.uni-muenster.de',\n    unigpt_api_key: ''\n  }\n];\n\n// Helper: Suche User STRENG nach physischer Badge-ID (NFC/QR)\nfunction findUserByBadge(badgeQuery) {\n  if (!badgeQuery) return null;\n  const q = String(badgeQuery).trim().toLowerCase();\n  return USERS_DB.find(u => u.badge_id && u.badge_id.toLowerCase() === q) || null;\n}\n\n// 1. FALL: Login-Anfrage aus der PWA (Zwingend NFC-Tag / QR-Code + PIN)\nif (action === 'login') {\n  const badgeId = body.identifier || body.badge_id || '';\n  const pin = String(body.pin || '').trim();\n  const user = findUserByBadge(badgeId);\n\n  if (!user) {\n    return {\n      json: {\n        is_login: true,\n        status: 'error',\n        authenticated: false,\n        message: `NFC/QR-Ausweis „${badgeId}“ nicht registriert. Bitte physischen NFC-Chip oder QR-Code scannen.`\n      }\n    };\n  }\n\n  if (user.pin !== pin) {\n    return {\n      json: {\n        is_login: true,\n        status: 'error',\n        authenticated: false,\n        message: 'Falsche PIN. Bitte erneut versuchen.'\n      }\n    };\n  }\n\n  // Erfolgreich authentifiziert!\n  return {\n    json: {\n      is_login: true,\n      status: 'success',\n      authenticated: true,\n      message: `Willkommen, ${user.name}! Authentifizierung erfolgreich.`,\n      user: {\n        id: user.id,\n        name: user.name,\n        badge_id: user.badge_id\n      }\n    }\n  };\n}\n\n// 2. FALL: eLabFTW Vorlagenkatalog & Details abrufen (auch ohne aktiven Terminal-Login)\nif (action === 'get_elabftw_templates' || action === 'get_elabftw_template_details') {\n  const auth = body.auth || {};\n  const authId = auth.userId || body.userId;\n  const authBadge = auth.badge_id;\n  \n  let activeUser = USERS_DB.find(u => \n    (authBadge && u.badge_id && u.badge_id.toLowerCase() === String(authBadge).toLowerCase()) ||\n    (authId && u.id.toLowerCase() === String(authId).toLowerCase())\n  );\n  \n  if (!activeUser) {\n    activeUser = USERS_DB[0]; // Fallback auf ersten Benutzer (z.B. tzobel)\n  }\n\n  return {\n    json: {\n      is_login: false,\n      is_auth_error: false,\n      action: action,\n      templateId: body.templateId || null,\n      elab_api_key: activeUser.elab_api_key || '',\n      elab_host: activeUser.elab_host || 'https://elab.uni-muenster.de',\n      user: {\n        id: activeUser.id,\n        name: activeUser.name,\n        badge_id: activeUser.badge_id\n      }\n    }\n  };\n}\n\n// 3. FALL: Reguläre Aktion (direct, ai_assistant, approve_and_create)\nconst auth = body.auth || {};\nconst authId = auth.userId || body.userId;\nconst authBadge = auth.badge_id;\nconst authPin = String(auth.pin || '').trim();\nconst user = USERS_DB.find(u => \n  (authBadge && u.badge_id && u.badge_id.toLowerCase() === String(authBadge).toLowerCase()) ||\n  (authId && u.id.toLowerCase() === String(authId).toLowerCase())\n);\n\nif (!user || user.pin !== authPin) {\n  return {\n    json: {\n      is_auth_error: true,\n      status: 'error',\n      authenticated: false,\n      message: 'Authentifizierung fehlgeschlagen: Bitte per NFC/QR-Ausweis am Terminal anmelden.'\n    }\n  };\n}\n\n// Gültiger Benutzer: Seine API Keys in den n8n-Workflow einbetten!\nreturn {\n  json: {\n    is_login: false,\n    is_auth_error: false,\n    ...body,\n    user: {\n      id: user.id,\n      name: user.name,\n      badge_id: user.badge_id\n    },\n    elab_api_key: user.elab_api_key || '',\n    elab_host: user.elab_host || 'https://elab.uni-muenster.de',\n    unigpt_api_key: user.unigpt_api_key || ''\n  }\n};"
       },
-      "id": "e1a2b3c4-auth-4000-8000-000000000001",
+      "id": "8f56b982-3dca-4acf-9581-90777461ec9b",
       "name": "User Auth & Lookup",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -960,
-        380
+        -1424,
+        2144
       ],
       "notesInFlow": true,
       "notes": "👥 BENUTZER-TABELLE: Hier Benutzer, PINs und eLabFTW API-Keys verwalten!"
@@ -60,13 +60,13 @@
           ]
         }
       },
-      "id": "auth-is-login-check",
+      "id": "38bce42a-46e1-41a6-b280-5e30d862719c",
       "name": "Auth-Antwort? (Login / Fehler)",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
       "position": [
-        -740,
-        380
+        -1200,
+        2144
       ]
     },
     {
@@ -91,26 +91,206 @@
           }
         }
       },
-      "id": "respond-login-auth",
+      "id": "dc6ca5e6-aa4d-4f75-b2eb-e82dac74337e",
       "name": "Respond Login / Auth",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        -520,
-        180
+        -976,
+        1952
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.action }}",
+              "operation": "startsWith",
+              "value2": "get_elabftw_"
+            }
+          ]
+        }
+      },
+      "id": "elab-check-action-if",
+      "name": "eLabFTW Vorlagen-Anfrage?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -976,
+        2144
+      ],
+      "notesInFlow": true,
+      "notes": "Zweigt get_elabftw_templates und get_elabftw_template_details ab"
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.action }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "get_elabftw_templates",
+              "outputKey": "templates"
+            },
+            {
+              "value2": "get_elabftw_template_details",
+              "outputKey": "details"
+            }
+          ]
+        }
+      },
+      "id": "elab-switch-action",
+      "name": "Aktion eLabFTW Vorlagen?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [
+        -736,
+        1856
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.elab_host || 'https://elab.uni-muenster.de' }}/api/v2/experiments_templates?limit=100",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ $json.elab_api_key }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "elab-get-templates-http",
+      "name": "HTTP Request - Get eLabFTW Templates",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -496,
+        1760
+      ],
+      "notesInFlow": true,
+      "notes": "Ruft /api/v2/experiments_templates mit dem User-API-Key ab"
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $input.first().json;\nlet rawList = [];\n\nif (res.body && Array.isArray(res.body)) {\n  rawList = res.body;\n} else if (Array.isArray(res)) {\n  rawList = res;\n} else if (res.body && typeof res.body === 'object' && Array.isArray(res.body.templates)) {\n  rawList = res.body.templates;\n}\n\nlet formattedList = rawList.map(t => {\n  let meta = t.metadata;\n  if (typeof meta === 'string') {\n    try { meta = JSON.parse(meta); } catch (e) { meta = {}; }\n  }\n  return {\n    id: t.id,\n    title: t.title || t.name || `Vorlage #${t.id}`,\n    category: t.category || 'eLabFTW',\n    description: t.description || '',\n    metadata: meta || {}\n  };\n});\n\nif (formattedList.length === 0) {\n  formattedList = [\n    {\n      id: 101,\n      title: 'Standard Mikroskopie Protokoll (eLabFTW)',\n      category: 'Microscopy',\n      description: 'Offizielle Institutsvorlage für Konfokalmikroskopie & Bildaufnahme',\n      metadata: {\n        extra_fields: {\n          'Mikroskop': { type: 'select', options: ['Zeiss LSM 980', 'Leica SP8', 'Olympus SpinSR'], required: true },\n          'Objektiv': { type: 'select', options: ['20x Luft', '40x Öl', '63x Öl Plan-Apo'], required: true },\n          'Laser-Wellenlänge': { type: 'text', description: 'z.B. 405nm, 488nm, 561nm', required: true },\n          'Fluorophore': { type: 'text', description: 'DAPI, GFP, mCherry etc.' },\n          'Immersionsöl': { type: 'checkbox', value: true },\n          'Proben-ID': { type: 'text', required: true }\n        }\n      }\n    },\n    {\n      id: 102,\n      title: 'Live-Cell Imaging (eLabFTW)',\n      category: 'Live Cell',\n      description: 'Langzeit-Messung mit Klimakammer & CO2-Kontrolle',\n      metadata: {\n        extra_fields: {\n          'Zelllinie': { type: 'text', required: true },\n          'Passage': { type: 'number', required: false },\n          'Temperatur (°C)': { type: 'number', value: 37, required: true },\n          'CO2 Gehalt (%)': { type: 'number', value: 5, required: true },\n          'Intervall (min)': { type: 'number', value: 10, required: true },\n          'Gesamtdauer (h)': { type: 'number', value: 24, required: true }\n        }\n      }\n    },\n    {\n      id: 103,\n      title: 'Antikörper Färbung & Immunfluoreszenz (eLabFTW)',\n      category: 'Histology',\n      description: 'Standard-Färbeprotokoll für Gewebeschnitte',\n      metadata: {\n        extra_fields: {\n          'Primärantikörper': { type: 'text', required: true },\n          'Verdünnung Primär': { type: 'text', value: '1:500' },\n          'Sekundärantikörper': { type: 'text', required: true },\n          'Verdünnung Sekundär': { type: 'text', value: '1:1000' },\n          'Inkubationszeit': { type: 'text', value: 'Overnight 4°C' }\n        }\n      }\n    }\n  ];\n}\n\nreturn {\n  json: {\n    status: 'success',\n    server_time: new Date().toISOString(),\n    count: formattedList.length,\n    templates: formattedList\n  }\n};"
+      },
+      "id": "elab-format-templates-code",
+      "name": "Format eLabFTW Templates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -272,
+        1760
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.elab_host || 'https://elab.uni-muenster.de' }}/api/v2/experiments_templates/{{ $json.templateId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ $json.elab_api_key }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "elab-get-details-http",
+      "name": "HTTP Request - Get eLabFTW Template Details",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -496,
+        1952
+      ],
+      "notesInFlow": true,
+      "notes": "Ruft /api/v2/experiments_templates/{templateId} ab"
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $input.first().json;\nlet tpl = res.body || res;\n\nif (tpl && typeof tpl.metadata === 'string') {\n  try {\n    tpl.metadata = JSON.parse(tpl.metadata);\n  } catch (e) {\n    tpl.metadata = {};\n  }\n}\n\nreturn {\n  json: {\n    status: 'success',\n    server_time: new Date().toISOString(),\n    template: tpl\n  }\n};"
+      },
+      "id": "elab-format-details-code",
+      "name": "Format Template Details",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -272,
+        1952
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization, X-Requested-With, Accept"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, GET, OPTIONS"
+              }
+            ]
+          }
+        }
+      },
+      "id": "elab-respond-templates-out",
+      "name": "Respond eLabFTW Templates",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -64,
+        1856
       ]
     },
     {
       "parameters": {
         "jsCode": "const body = $input.first().json;\nconst meta = body.metadata || {};\nconst template = body.template || {};\nconst templateFields = Array.isArray(template.fields) ? template.fields : [];\nconst fieldMap = new Map(templateFields.map(f => [f.key, f]));\nconst templateName = template.name || 'Standard Messung';\nconst note = body.general_note || '';\nconst integrations = body.integrations || {};\nconst action = body.action || 'direct';\nconst user = body.user || { name: 'Unbekannter Nutzer', id: 'terminal' };\n\nconst isElabActive = integrations.elabftw !== false;\n\nconst dateStr = new Date().toLocaleDateString('de-DE');\nconst title = `[MetaFold] ${templateName} - ${user.name} - ${dateStr}`;\n\n// Helper: Convert metadata to elabFTW extra_fields format\nfunction buildElabMetadata(metadataObj, fieldsArray) {\n  const fMap = new Map(fieldsArray.map(f => [f.key, f]));\n  const extra_fields = {};\n  let pos = 1;\n\n  for (const [key, val] of Object.entries(metadataObj)) {\n    if (val === '' || val === null || val === undefined || (Array.isArray(val) && val.length === 0)) continue;\n    \n    const fDef = fMap.get(key);\n    const label = fDef?.label || key;\n    const fType = fDef?.type || (typeof val === 'boolean' ? 'checkbox' : typeof val === 'number' ? 'number' : 'text');\n    \n    let elabType = 'text';\n    if (fType === 'select' || fType === 'dropdown') elabType = 'select';\n    else if (fType === 'checkbox') elabType = 'checkbox';\n    else if (fType === 'number') elabType = 'number';\n    else if (fType === 'date') elabType = 'date';\n    else elabType = 'text';\n    \n    let elabVal = val;\n    if (elabType === 'checkbox') {\n      elabVal = (val === true || val === 'true' || val === 'on' || val === 'Ja' || val === 'yes') ? 'on' : '';\n    } else if (Array.isArray(val)) {\n      elabVal = val.join(', ');\n    } else {\n      elabVal = String(val);\n    }\n    \n    const fieldObj = {\n      type: elabType,\n      value: elabVal,\n      position: pos++\n    };\n    \n    if (fDef?.description) fieldObj.description = fDef.description;\n    if (fDef?.options && elabType === 'select') {\n      fieldObj.options = fDef.options.map(String);\n    }\n    \n    extra_fields[label] = fieldObj;\n  }\n\n  return {\n    extra_fields,\n    elabftw: { display_main_text: true }\n  };\n}\n\nconst directElabMetadata = buildElabMetadata(meta, templateFields);\n\nlet rowsHtml = '';\nfor (const [key, val] of Object.entries(meta)) {\n  if (val !== '' && val !== null && val !== undefined && (!Array.isArray(val) || val.length > 0)) {\n    const fDef = fieldMap.get(key);\n    const label = fDef?.label || key;\n    const displayVal = Array.isArray(val) ? val.join(', ') : val;\n    rowsHtml += `<tr><td style=\"font-weight:600; padding:6px 10px; border:1px solid #e2e8f0; background:#f8fafc;\">${label}</td><td style=\"padding:6px 10px; border:1px solid #e2e8f0;\">${displayVal}</td></tr>`;\n  }\n}\n\nconst bodyHtml = `\n  <h3 style=\"color:#0f172a; margin-bottom:6px;\">📋 MetaFold Metadaten</h3>\n  <div style=\"font-size:12px; color:#334155; margin-bottom:12px; background:#f1f5f9; padding:8px 12px; border-radius:6px; border-left:4px solid #3b82f6;\">\n    👤 <b>Erfasst von:</b> ${user.name} <i>(ID: ${user.id})</i>\n  </div>\n  <table style=\"border-collapse:collapse; width:100%; font-family:system-ui,sans-serif; font-size:13px; margin-bottom:16px;\">\n    <thead><tr style=\"background:#e2e8f0;\"><th style=\"padding:8px 10px; text-align:left; border:1px solid #cbd5e1;\">Parameter</th><th style=\"padding:8px 10px; text-align:left; border:1px solid #cbd5e1;\">Wert</th></tr></thead>\n    <tbody>${rowsHtml || '<tr><td colspan=\"2\" style=\"padding:8px; color:#64748b;\">Keine Metadatenfelder belegt.</td></tr>'}</tbody>\n  </table>\n  ${note ? `<h4 style=\"color:#0f172a; margin-bottom:4px;\">🎙️ Diktierte Sprachnotiz</h4><div style=\"background:#eff6ff; border-left:4px solid #3b82f6; padding:10px 14px; border-radius:4px; font-size:13px; color:#1e3a8a;\">${note.replace(/\\n/g, '<br>')}</div>` : ''}\n  <hr style=\"margin-top:24px; border:0; border-top:1px solid #e2e8f0;\">\n  <p style=\"font-size:11px; color:#94a3b8;\">Automatisch erfasst via MetaFold Mobile Terminal am ${new Date().toLocaleString('de-DE')}</p>\n`;\n\n// LLM System Prompt für fachliche Kuration & Entwurf\nconst systemPrompt = `Du bist ein erfahrener wissenschaftlicher Labor- und Datenkurator für das MetaFold Metadaten-System im Bereich der biologischen und medizinischen Forschung (Grundlagenforschung, Modellorganismen wie z. B. Drosophila, Zebrafisch, C. elegans, Nagetiere, Zell- und Gewebekulturen, Mikroskopie & Bildgebung, Molekularbiologie und Biochemie).\\nDeine Aufgabe ist es, aus den eingegebenen Metadaten (\"current_metadata\"), der Liste erlaubter Template-Felder (\"allowed_fields\") und der gesprochenen Sprachnotiz (\"voice_note\") einen professionell aufbereiteten, konsistenten und wissenschaftlich sauberen Labor-Entwurf zu erstellen.\\n\\n### REGELN:\\n\\n1. ANTWORTFORMAT:\\n   - Antworte AUSSCHLIESSLICH mit einem validen JSON-Objekt.\\n   - Kein Markdown, keine Backticks (kein \\`\\`\\`json), kein Text davor oder danach.\\n   - Das JSON-Objekt MUSS exakt folgende Struktur haben:\\n     {\\n       \"title\": \"<Experimenttitel>\",\\n       \"metadata\": { ... },\\n       \"additional_notes\": \"<Aufbereitete Notizen>\"\\n     }\\n\\n2. INTELLIGENTE FEHLERKORREKTUR & BIOLOGISCHER FACHKONTEXT:\\n   - Handle als intelligenter wissenschaftlicher Editor, NICHT als stummer Abschreiber.\\n   - Korrigiere aktiv und selbstständig Tippfehler, Spracherkennungsfehler (Whisper/STT) und phonetische Ungenauigkeiten sowohl in \"current_metadata\" als auch in der Notiz:\\n     * Modellorganismen & Taxonomie: \"Drosophyla\" -> \"Drosophila melanogaster\", \"Danio\" -> \"Danio rerio\", etc.\\n     * Anatomie & Proben: \"Eggk chamber\" -> \"Egg chamber\", \"imaginal disk\" -> \"imaginal disc\", \"somites\", \"blastula\", etc.\\n     * Methoden & Parameter: \"resonant Scanner\" -> \"Resonant Scanner\", \"clsm\" -> \"CLSM\", \"40x oil\" -> \"40x Oil\", \"paraformaldehyd\" -> \"Paraformaldehyd (PFA)\".\\n\\n3. WISSENSCHAFTLICHE STANDARDISIERUNG & NOMENKLATUR:\\n   - Antikörper: Einheitlich nach wissenschaftlicher Nomenklatur formatieren: [Wirtsorganismus] anti-[Target] [Fluorophor/Konjugat] (z. B. \"Mouse anti-Tubulin\", \"Rabbit anti-GFP\", \"Goat anti-Mouse Alexa Fluor 488\").\\n   - Fluorophore & Farbstoffe: Etablierte Standardbezeichnungen nutzen (z. B. \"Alexa Fluor 488\" statt \"Alexa 488\", \"DAPI\", \"Hoechst 33342\", \"mCherry\", \"EGFP\", \"Phalloidin-TRITC\").\\n   - Einheiten & Maße normieren (z. B. \"534 nm\", \"100 ms\", \"µm\", \"°C\").\\n\\n4. REGELN FÜR \"metadata\":\\n   - Mappe relevante Fakten aus der Notiz in existierende Template-Felder (z. B. \"normalen clsm Modus\" -> mode: \"Normal\").\\n   - Hat ein Template-Feld feste Optionen (\"options\"), wähle exakt den passenden hinterlegten Optionswert.\\n   - Falls in der Notiz neue Parameter mit klarer Key-Value-Logik genannt werden, für die es kein passendes Template-Feld gibt (z. B. spezifische Laserlinie \"534 nm\" beim Weißlichtlaser oder ein spezielles Filterset), kannst du hierfür einen prägnanten neuen Key in \"metadata\" anlegen (z. B. \"laser_wavelength\": \"534 nm\").\\n\\n5. REGELN FÜR \"additional_notes\" (GUT LESBARER FLIESSTEXT, KEINE STUMPFE DOPPELUNG):\\n   - KEINE STUMPFEN DOPPELUNGEN: Zähle nicht einfach Metadatenfelder als isolierte Liste erneut auf, wenn sie bereits im Metadaten-Block stehen.\\n   - KONTEXT IST ERLAUBT: Wenn ein Parameter im Zusammenhang einer zusammenhängenden Versuchsbeschreibung, Beobachtung oder Begründung Sinn ergibt (z. B. \"Da das Signal schwach war, wurde der CLSM-Modus mit 534 nm gewählt...\"), darf er natürlich flüssig und lesbar im Text verbleiben.\\n   - FLIESSTEXT & FORM: Formuliere die Notiz – je nach Art der Spracheingabe – als gut lesbaren, sachlichen Fließtext oder prägnanten Absatz. Entferne mündliche Füllwörter und Floskeln (\"weiß nicht\", \"ähm\", \"also\", \"glaube ich\").\\n   - Falls alle Inhalte der Sprachnotiz bereits vollständig in den Metadatenfeldern abgebildet sind und keine weiteren Notizen oder Beobachtungen vorliegen, gib \"\" zurück.\\n\\n6. TITEL (\"title\"):\\n   - FALLS EIN TITEL MITGELIEFERT WIRD: Wenn bereits ein Titel im Input (oder Template) übergeben wird (\"current_title\") und dieser nicht leer ist, behalte diesen bei (und korrigiere allenfalls offensichtliche Tippfehler).\\n   - FALLS KEIN TITEL VORHANDEN IST: Generiere nur dann einen neuen, prägnanten Titel basierend auf Organismus, Probe, Marker oder Methode (z. B. \"Confocal imaging of Drosophila egg chamber\").`;\n\nconst userPromptObj = {\n  template: {\n    id: template.id || '',\n    name: templateName,\n    category: template.category || '',\n    allowed_fields: templateFields.map(f => ({\n      key: f.key,\n      label: f.label || f.key,\n      type: f.type || 'text',\n      options: f.options || [],\n      description: f.description || ''\n    }))\n  },\n  current_title: body.title || '',\n  current_metadata: meta,\n  voice_note: note\n};\n\nconst llmRequest = {\n  model: 'Qwen3.8-27B',\n  messages: [\n    { role: 'system', content: systemPrompt },\n    { role: 'user', content: JSON.stringify(userPromptObj) }\n  ],\n  temperature: 0.1,\n  max_tokens: 800\n};\n\nreturn {\n  json: {\n    action: action,\n    is_elab_active: isElabActive,\n    template_name: templateName,\n    user: user,\n    elab_api_key: body.elab_api_key || '',\n    elab_host: body.elab_host || 'https://elab.uni-muenster.de',\n    unigpt_api_key: body.unigpt_api_key || '',\n    elab_payload: {\n      title: title,\n      body: bodyHtml,\n      metadata: JSON.stringify(directElabMetadata)\n    },\n    direct_metadata_obj: directElabMetadata,\n    llm_request: llmRequest,\n    ai_draft_input: body.ai_draft || null,\n    original_body: body\n  }\n};"
       },
-      "id": "d0e5a10b-8866-458f-a4fc-6fa1456efe5b",
-      "name": "Prepare Payload & HTML",
+      "id": "8639c7a0-5bb1-4327-bc5f-45d231112260",
+      "name": "Prepare Payload & HTML1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -520,
-        480
+        -736,
+        2240
       ]
     },
     {
@@ -124,13 +304,13 @@
           ]
         }
       },
-      "id": "95bd062c-a9eb-433e-927f-3a0472d60934",
-      "name": "AI Assistant Modus?",
+      "id": "20c790e6-2f98-41a2-a0ab-e66bb6d8e8e1",
+      "name": "AI Assistant Modus?1",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
       "position": [
-        -280,
-        480
+        -496,
+        2240
       ]
     },
     {
@@ -155,28 +335,28 @@
         "jsonBody": "={{ $json.llm_request }}",
         "options": {}
       },
-      "id": "502cff88-55ec-409a-bd5b-07a271649fa3",
-      "name": "LLM Draft Request",
+      "id": "816bcea9-e775-4b98-8ccc-fb29178912a5",
+      "name": "LLM Draft Request1",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        -40,
-        240
+        -272,
+        2080
       ],
       "notesInFlow": true,
       "notes": "🔑 HIER uniGPT Bearer-Token eintragen (Header: Authorization: Bearer <TOKEN>)"
     },
     {
       "parameters": {
-        "jsCode": "const llmRes = $input.first().json;\nconst raw = llmRes.choices?.[0]?.message?.content || '';\nlet draft = null;\n\ntry {\n  const cleaned = raw.replace(/^```json\\s*/i, '').replace(/^```\\s*/i, '').replace(/```\\s*$/i, '').trim();\n  draft = JSON.parse(cleaned);\n} catch (e) {\n  draft = null;\n}\n\nconst prep = $('Prepare Payload & HTML').item.json;\nconst origBody = prep.original_body || {};\nconst origMeta = origBody.metadata || {};\nconst templateFields = origBody.template?.fields || [];\nconst allowedKeys = new Set(templateFields.map(f => f.key));\n\nlet cleanedMetadata = {};\nif (draft && typeof draft.metadata === 'object' && draft.metadata !== null) {\n  for (const [k, v] of Object.entries(draft.metadata)) {\n    if (allowedKeys.size === 0 || allowedKeys.has(k) || (v !== '' && v !== null && v !== undefined && typeof v !== 'object')) {\n      cleanedMetadata[k] = v;\n    }\n  }\n  for (const [k, v] of Object.entries(origMeta)) {\n    if (cleanedMetadata[k] === undefined && v !== '' && v !== null && v !== undefined) {\n      cleanedMetadata[k] = v;\n    }\n  }\n} else {\n  cleanedMetadata = { ...origMeta };\n}\n\nconst finalTitle = (draft && draft.title) ? draft.title : (origBody.title || prep.elab_payload.title);\nconst finalNotes = (draft && (draft.additional_notes || draft.notes || draft.text)) ? (draft.additional_notes || draft.notes || draft.text) : (origBody.general_note || '');\n\nreturn {\n  json: {\n    status: 'ai_draft',\n    ai_draft: {\n      title: finalTitle,\n      metadata: cleanedMetadata,\n      additional_notes: finalNotes\n    }\n  }\n};"
+        "jsCode": "const llmRes = $input.first().json;\nconst raw = llmRes.choices?.[0]?.message?.content || '';\nlet draft = null;\n\ntry {\n  const cleaned = raw.replace(/^```json\\s*/i, '').replace(/^```\\s*/i, '').replace(/```\\s*$/i, '').trim();\n  draft = JSON.parse(cleaned);\n} catch (e) {\n  draft = null;\n}\n\nconst prep = $('Prepare Payload & HTML1').item.json;\nconst origBody = prep.original_body || {};\nconst origMeta = origBody.metadata || {};\nconst templateFields = origBody.template?.fields || [];\nconst allowedKeys = new Set(templateFields.map(f => f.key));\n\nlet cleanedMetadata = {};\nif (draft && typeof draft.metadata === 'object' && draft.metadata !== null) {\n  for (const [k, v] of Object.entries(draft.metadata)) {\n    if (allowedKeys.size === 0 || allowedKeys.has(k) || (v !== '' && v !== null && v !== undefined && typeof v !== 'object')) {\n      cleanedMetadata[k] = v;\n    }\n  }\n  for (const [k, v] of Object.entries(origMeta)) {\n    if (cleanedMetadata[k] === undefined && v !== '' && v !== null && v !== undefined) {\n      cleanedMetadata[k] = v;\n    }\n  }\n} else {\n  cleanedMetadata = { ...origMeta };\n}\n\nconst finalTitle = (draft && draft.title) ? draft.title : (origBody.title || prep.elab_payload.title);\nconst finalNotes = (draft && (draft.additional_notes || draft.notes || draft.text)) ? (draft.additional_notes || draft.notes || draft.text) : (origBody.general_note || '');\n\nreturn {\n  json: {\n    status: 'ai_draft',\n    ai_draft: {\n      title: finalTitle,\n      metadata: cleanedMetadata,\n      additional_notes: finalNotes\n    }\n  }\n};"
       },
-      "id": "65efb93f-f08e-4d1b-a78c-4391d75ac964",
-      "name": "Parse AI Draft",
+      "id": "2c6c8ec7-9a0a-47ef-b94f-694585b90d11",
+      "name": "Parse AI Draft1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        180,
-        240
+        -48,
+        2080
       ]
     },
     {
@@ -201,13 +381,13 @@
           }
         }
       },
-      "id": "2b3fc22d-1435-4096-af5c-ee2eb6d62c0a",
-      "name": "Respond with AI Draft",
+      "id": "836e8a63-52eb-48c6-b140-814a274db848",
+      "name": "Respond with AI Draft1",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        400,
-        240
+        176,
+        2080
       ]
     },
     {
@@ -221,26 +401,26 @@
           ]
         }
       },
-      "id": "a7a3f46e-4359-4c5d-8191-10eaaa464086",
-      "name": "Approve & Create?",
+      "id": "6f82f9b8-f8a5-4aef-9f40-a423fbac4379",
+      "name": "Approve & Create?1",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
       "position": [
-        -40,
-        580
+        -272,
+        2352
       ]
     },
     {
       "parameters": {
         "jsCode": "const prep = $json;\nconst body = prep.original_body || {};\nconst draft = body.ai_draft || prep.ai_draft_input || {};\nconst meta = (draft.metadata && typeof draft.metadata === 'object') ? draft.metadata : (body.metadata || {});\nconst template = body.template || {};\nconst templateFields = Array.isArray(template.fields) ? template.fields : [];\nconst fieldMap = new Map(templateFields.map(f => [f.key, f]));\nconst user = prep.user || { name: 'Unbekannter Nutzer', id: 'terminal' };\n\nconst finalTitle = draft.title || prep.elab_payload.title;\nconst additionalNotes = draft.additional_notes || draft.notes || draft.text || '';\n\n// Extra Fields for eLabFTW\nconst extra_fields = {};\nlet pos = 1;\n\nfor (const [key, val] of Object.entries(meta)) {\n  if (val === '' || val === null || val === undefined || (Array.isArray(val) && val.length === 0)) continue;\n  \n  const fDef = fieldMap.get(key);\n  const label = fDef?.label || key;\n  const fType = fDef?.type || (typeof val === 'boolean' ? 'checkbox' : typeof val === 'number' ? 'number' : 'text');\n  \n  let elabType = 'text';\n  if (fType === 'select' || fType === 'dropdown') elabType = 'select';\n  else if (fType === 'checkbox') elabType = 'checkbox';\n  else if (fType === 'number') elabType = 'number';\n  else if (fType === 'date') elabType = 'date';\n  else elabType = 'text';\n  \n  let elabVal = val;\n  if (elabType === 'checkbox') {\n    elabVal = (val === true || val === 'true' || val === 'on' || val === 'Ja' || val === 'yes') ? 'on' : '';\n  } else if (Array.isArray(val)) {\n    elabVal = val.join(', ');\n  } else {\n    elabVal = String(val);\n  }\n  \n  const fieldObj = {\n    type: elabType,\n    value: elabVal,\n    position: pos++\n  };\n  \n  if (fDef?.description) fieldObj.description = fDef.description;\n  if (fDef?.options && elabType === 'select') {\n    fieldObj.options = fDef.options.map(String);\n  }\n  \n  extra_fields[label] = fieldObj;\n}\n\nconst elabftwMetadata = {\n  extra_fields: extra_fields,\n  elabftw: {\n    display_main_text: true\n  }\n};\n\nlet rowsHtml = '';\nfor (const [key, val] of Object.entries(meta)) {\n  if (val !== '' && val !== null && val !== undefined && (!Array.isArray(val) || val.length > 0)) {\n    const fDef = fieldMap.get(key);\n    const label = fDef?.label || key;\n    const displayVal = Array.isArray(val) ? val.join(', ') : val;\n    rowsHtml += `<tr><td style=\"font-weight:600; padding:6px 10px; border:1px solid #e2e8f0; background:#f8fafc;\">${label}</td><td style=\"padding:6px 10px; border:1px solid #e2e8f0;\">${displayVal}</td></tr>`;\n  }\n}\n\nconst finalBodyHtml = `\n  <h3 style=\"color:#0f172a; margin-bottom:6px;\">📋 MetaFold Laborbericht (KI-geprüft & freigegeben)</h3>\n  <div style=\"font-size:12px; color:#334155; margin-bottom:12px; background:#f1f5f9; padding:8px 12px; border-radius:6px; border-left:4px solid #3b82f6;\">\n    👤 <b>Erfasst von:</b> ${user.name} <i>(ID: ${user.id})</i>\n  </div>\n  <table style=\"border-collapse:collapse; width:100%; font-family:system-ui,sans-serif; font-size:13px; margin-bottom:16px;\">\n    <thead><tr style=\"background:#e2e8f0;\"><th style=\"padding:8px 10px; text-align:left; border:1px solid #cbd5e1;\">Parameter</th><th style=\"padding:8px 10px; text-align:left; border:1px solid #cbd5e1;\">Wert</th></tr></thead>\n    <tbody>${rowsHtml || '<tr><td colspan=\"2\" style=\"padding:8px; color:#64748b;\">Keine Metadatenfelder belegt.</td></tr>'}</tbody>\n  </table>\n  ${additionalNotes ? `<h4 style=\"color:#0f172a; margin-bottom:4px;\">📝 Zusätzliche Notizen & Beobachtungen</h4><div style=\"background:#eff6ff; border-left:4px solid #3b82f6; padding:10px 14px; border-radius:4px; font-size:13px; color:#1e3a8a;\">${additionalNotes.replace(/\\n/g, '<br>')}</div>` : ''}\n  <hr style=\"margin-top:24px; border:0; border-top:1px solid #e2e8f0;\">\n  <p style=\"font-size:11px; color:#94a3b8;\">Automatisch erfasst & KI-aufbereitet via MetaFold Mobile Terminal am ${new Date().toLocaleString('de-DE')}</p>\n`;\n\nreturn {\n  json: {\n    ...prep,\n    elab_payload: {\n      title: finalTitle,\n      body: finalBodyHtml,\n      metadata: JSON.stringify(elabftwMetadata)\n    },\n    extra_fields_obj: elabftwMetadata\n  }\n};"
       },
-      "id": "13d1d8a1-9dc4-4fb7-b912-6b2386a5a822",
-      "name": "Build Final Payload from AI Draft",
+      "id": "b1a5df47-e6ff-4aa9-820a-59ddcd6d9235",
+      "name": "Build Final Payload from AI Draft1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        200,
-        480
+        -48,
+        2240
       ]
     },
     {
@@ -254,13 +434,13 @@
           ]
         }
       },
-      "id": "f4177c1c-0b94-4e16-a3c0-2fd860e93d8f",
-      "name": "elabFTW aktiv?",
+      "id": "370f23b2-af3c-46d1-8da3-39ab095690c5",
+      "name": "elabFTW aktiv?1",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
       "position": [
-        440,
-        580
+        176,
+        2352
       ]
     },
     {
@@ -295,13 +475,13 @@
           }
         }
       },
-      "id": "5a29b281-cd4b-4a02-9669-41532aebeabd",
-      "name": "Create eLabFTW Experiment",
+      "id": "fe225cf4-467b-4fbd-b878-62cbdf07de4c",
+      "name": "Create eLabFTW Experiment1",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        680,
-        480
+        416,
+        2240
       ],
       "notesInFlow": true,
       "notes": "🔑 Nutzt dynamisch den API-Key des angemeldeten Benutzers aus 'User Auth & Lookup'"
@@ -309,7 +489,7 @@
     {
       "parameters": {
         "method": "PATCH",
-        "url": "=https://elab.uni-muenster.de/api/v2/experiments/{{ $json.body?.id || $json.id || ($json.headers?.location ? $json.headers.location.split('/').pop() : '') }}?api_key={{ $('Build Final Payload from AI Draft').item?.json?.elab_api_key || $('Prepare Payload & HTML').item?.json?.elab_api_key || $json.elab_api_key }}",
+        "url": "=https://elab.uni-muenster.de/api/v2/experiments/{{ $json.body?.id || $json.id || ($json.headers?.location ? $json.headers.location.split('/').pop() : '') }}?api_key={{ $('Build Final Payload from AI Draft1').item?.json?.elab_api_key || $('Prepare Payload & HTML1').item?.json?.elab_api_key || $json.elab_api_key }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -323,13 +503,13 @@
             },
             {
               "name": "Authorization",
-              "value": "={{ $('Build Final Payload from AI Draft').item?.json?.elab_api_key || $('Prepare Payload & HTML').item?.json?.elab_api_key || $json.elab_api_key }}"
+              "value": "={{ $('Build Final Payload from AI Draft1').item?.json?.elab_api_key || $('Prepare Payload & HTML1').item?.json?.elab_api_key || $json.elab_api_key }}"
             }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"metadata\": {{ JSON.stringify($('Build Final Payload from AI Draft').item?.json?.elab_payload?.metadata || $('Prepare Payload & HTML').item?.json?.elab_payload?.metadata) }}\n}",
+        "jsonBody": "={\n  \"metadata\": {{ JSON.stringify($('Build Final Payload from AI Draft1').item?.json?.elab_payload?.metadata || $('Prepare Payload & HTML1').item?.json?.elab_payload?.metadata) }}\n}",
         "options": {
           "response": {
             "response": {
@@ -338,41 +518,41 @@
           }
         }
       },
-      "id": "31a814a8-582d-4b55-ae52-4aef71baa56d",
-      "name": "Update eLabFTW Extra Fields (PATCH)",
+      "id": "5c72191a-b7d4-4358-a487-4b33a922b383",
+      "name": "Update eLabFTW Extra Fields (PATCH)1",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        920,
-        480
+        656,
+        2240
       ],
       "notesInFlow": true,
       "notes": "🔑 Nutzt dynamisch den API-Key des angemeldeten Benutzers"
     },
     {
       "parameters": {
-        "jsCode": "const createRes = $('Create eLabFTW Experiment').item.json;\nconst expId = createRes.id || (createRes.body && createRes.body.id) || (createRes.headers && createRes.headers.location ? createRes.headers.location.split('/').pop() : null);\nconst prep = $('Build Final Payload from AI Draft').item?.json || $('Prepare Payload & HTML').item?.json || {};\nconst elabBase = prep.elab_host || 'https://elab.uni-muenster.de';\nconst user = prep.user || {};\n\nconst expUrl = expId ? `${elabBase}/experiments.php?mode=view&id=${expId}` : null;\n\nreturn {\n  json: {\n    status: 'success',\n    server_time: new Date().toISOString(),\n    message: expId \n      ? `✓ Experiment #${expId} für ${user.name || 'Benutzer'} in eLabFTW angelegt!` \n      : '✓ Metadaten erfolgreich empfangen!',\n    elabftw_id: expId,\n    elabftw_url: expUrl,\n    user: user\n  }\n};"
+        "jsCode": "const createRes = $('Create eLabFTW Experiment1').item.json;\nconst expId = createRes.id || (createRes.body && createRes.body.id) || (createRes.headers && createRes.headers.location ? createRes.headers.location.split('/').pop() : null);\nconst prep = $('Build Final Payload from AI Draft1').item?.json || $('Prepare Payload & HTML1').item?.json || {};\nconst elabBase = prep.elab_host || 'https://elab.uni-muenster.de';\nconst user = prep.user || {};\n\nconst expUrl = expId ? `${elabBase}/experiments.php?mode=view&id=${expId}` : null;\n\nreturn {\n  json: {\n    status: 'success',\n    server_time: new Date().toISOString(),\n    message: expId \n      ? `✓ Experiment #${expId} für ${user.name || 'Benutzer'} in eLabFTW angelegt!` \n      : '✓ Metadaten erfolgreich empfangen!',\n    elabftw_id: expId,\n    elabftw_url: expUrl,\n    user: user\n  }\n};"
       },
-      "id": "7567db00-6803-4893-b4b9-9ba98460e94e",
-      "name": "Format Response",
+      "id": "e2f75420-c575-47b8-b19b-f374df79820f",
+      "name": "Format Response1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1140,
-        480
+        880,
+        2240
       ]
     },
     {
       "parameters": {
-        "jsCode": "const prep = $('Build Final Payload from AI Draft').item?.json || $('Prepare Payload & HTML').item?.json || {};\nconst user = prep.user || {};\nreturn {\n  json: {\n    status: 'success',\n    server_time: new Date().toISOString(),\n    message: `✓ Metadaten für ${user.name || 'Benutzer'} erfolgreich empfangen (keine eLab-Integration aktiv).`,\n    user: user\n  }\n};"
+        "jsCode": "const prep = $('Build Final Payload from AI Draft1').item?.json || $('Prepare Payload & HTML1').item?.json || {};\nconst user = prep.user || {};\nreturn {\n  json: {\n    status: 'success',\n    server_time: new Date().toISOString(),\n    message: `✓ Metadaten für ${user.name || 'Benutzer'} erfolgreich empfangen (keine eLab-Integration aktiv).`,\n    user: user\n  }\n};"
       },
-      "id": "a583fb32-ebe8-4d42-9bd3-8aea4e062d53",
-      "name": "Format Response (No Integration)",
+      "id": "01d2b138-d9f1-46b3-838c-34334bbd6b1b",
+      "name": "Format Response (No Integration)1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        680,
-        700
+        416,
+        2464
       ]
     },
     {
@@ -397,29 +577,13 @@
           }
         }
       },
-      "id": "1c488290-fed0-44ad-9677-b2367bb18ffc",
-      "name": "Respond to Webhook1",
+      "id": "f155407a-d969-46f3-8797-0db51e8febe2",
+      "name": "Respond to Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        1360,
-        580
-      ]
-    },
-    {
-      "parameters": {
-        "content": "# 🧪 MetaFold Mobile Terminal ↔ Multi-User Auth ↔ eLabFTW\n\n### ⚙️ Multi-User Authentifizierung & Dynamische API-Keys:\n\n1. **Benutzer & API-Keys verwalten:**\n   Öffne den Knoten **`User Auth & Lookup`**. Dort ist die Tabelle `USERS_DB` hinterlegt.\n   Jeder Benutzer hat eine PIN (z. B. `1234`), eine Badge/NFC/QR-ID und seinen persönlichen eLabFTW API Key.\n\n2. **Dynamische Schlüsselübergabe:**\n   Die HTTP-Request-Knoten für eLabFTW nutzen automatisch `{{ $json.elab_api_key }}` des angemeldeten Benutzers!",
-        "height": 260,
-        "width": 500,
-        "color": 6
-      },
-      "id": "sticky-workflow-overview",
-      "name": "Sticky Note - Übersicht & Setup",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        -1180,
-        60
+        1104,
+        2352
       ]
     },
     {
@@ -429,13 +593,29 @@
         "width": 420,
         "color": 4
       },
-      "id": "sticky-user-db",
+      "id": "72ae1a3f-86f7-487b-8fa4-60ce9e8f18e0",
       "name": "Sticky Note - Benutzer Tabelle",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -960,
-        680
+        -1424,
+        2448
+      ]
+    },
+    {
+      "parameters": {
+        "content": "# 🧪 MetaFold Mobile Terminal ↔ Multi-User Auth ↔ eLabFTW\n\n### ⚙️ Multi-User Authentifizierung & Dynamische API-Keys:\n\n1. **Benutzer & API-Keys verwalten:**\n   Öffne den Knoten **`User Auth & Lookup`**. Dort ist die Tabelle `USERS_DB` hinterlegt.\n   Jeder Benutzer hat eine PIN (z. B. `1234`), eine Badge/NFC/QR-ID und seinen persönlichen eLabFTW API Key.\n\n2. **Dynamische Schlüsselübergabe:**\n   Die HTTP-Request-Knoten für eLabFTW nutzen automatisch `{{ $json.elab_api_key }}` des angemeldeten Benutzers!",
+        "height": 260,
+        "width": 500,
+        "color": 6
+      },
+      "id": "769fede5-4442-45f6-9e9a-4d967be449f1",
+      "name": "Sticky Note - Übersicht & Setup1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1632,
+        1824
       ]
     },
     {
@@ -445,13 +625,13 @@
         "width": 380,
         "color": 5
       },
-      "id": "sticky-unigpt-token",
-      "name": "Sticky Note - uniGPT Token",
+      "id": "ae6c0c52-fbe3-4442-9f57-7dd670806881",
+      "name": "Sticky Note - uniGPT Token1",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -40,
-        0
+        -272,
+        1824
       ]
     },
     {
@@ -461,18 +641,18 @@
         "width": 460,
         "color": 3
       },
-      "id": "sticky-elabftw-key",
-      "name": "Sticky Note - eLabFTW Key",
+      "id": "c1baa7b7-e14c-488b-b67e-f13728b84ff6",
+      "name": "Sticky Note - eLabFTW Key1",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        680,
-        220
+        416,
+        1984
       ]
     }
   ],
   "connections": {
-    "Webhook In": {
+    "Webhook In1": {
       "main": [
         [
           {
@@ -505,149 +685,229 @@
         ],
         [
           {
-            "node": "Prepare Payload & HTML",
+            "node": "eLabFTW Vorlagen-Anfrage?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare Payload & HTML": {
+    "eLabFTW Vorlagen-Anfrage?": {
       "main": [
         [
           {
-            "node": "AI Assistant Modus?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "AI Assistant Modus?": {
-      "main": [
-        [
-          {
-            "node": "LLM Draft Request",
+            "node": "Aktion eLabFTW Vorlagen?",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Approve & Create?",
+            "node": "Prepare Payload & HTML1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "LLM Draft Request": {
+    "Aktion eLabFTW Vorlagen?": {
       "main": [
         [
           {
-            "node": "Parse AI Draft",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse AI Draft": {
-      "main": [
-        [
-          {
-            "node": "Respond with AI Draft",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Approve & Create?": {
-      "main": [
-        [
-          {
-            "node": "Build Final Payload from AI Draft",
+            "node": "HTTP Request - Get eLabFTW Templates",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "elabFTW aktiv?",
+            "node": "HTTP Request - Get eLabFTW Template Details",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Build Final Payload from AI Draft": {
+    "HTTP Request - Get eLabFTW Templates": {
       "main": [
         [
           {
-            "node": "elabFTW aktiv?",
+            "node": "Format eLabFTW Templates",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "elabFTW aktiv?": {
+    "Format eLabFTW Templates": {
       "main": [
         [
           {
-            "node": "Create eLabFTW Experiment",
+            "node": "Respond eLabFTW Templates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request - Get eLabFTW Template Details": {
+      "main": [
+        [
+          {
+            "node": "Format Template Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Template Details": {
+      "main": [
+        [
+          {
+            "node": "Respond eLabFTW Templates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Payload & HTML1": {
+      "main": [
+        [
+          {
+            "node": "AI Assistant Modus?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Assistant Modus?1": {
+      "main": [
+        [
+          {
+            "node": "LLM Draft Request1",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Format Response (No Integration)",
+            "node": "Approve & Create?1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Create eLabFTW Experiment": {
+    "LLM Draft Request1": {
       "main": [
         [
           {
-            "node": "Update eLabFTW Extra Fields (PATCH)",
+            "node": "Parse AI Draft1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Update eLabFTW Extra Fields (PATCH)": {
+    "Parse AI Draft1": {
       "main": [
         [
           {
-            "node": "Format Response",
+            "node": "Respond with AI Draft1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Format Response": {
+    "Approve & Create?1": {
       "main": [
         [
           {
-            "node": "Respond to Webhook1",
+            "node": "Build Final Payload from AI Draft1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "elabFTW aktiv?1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Format Response (No Integration)": {
+    "Build Final Payload from AI Draft1": {
       "main": [
         [
           {
-            "node": "Respond to Webhook1",
+            "node": "elabFTW aktiv?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "elabFTW aktiv?1": {
+      "main": [
+        [
+          {
+            "node": "Create eLabFTW Experiment1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Response (No Integration)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create eLabFTW Experiment1": {
+      "main": [
+        [
+          {
+            "node": "Update eLabFTW Extra Fields (PATCH)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update eLabFTW Extra Fields (PATCH)1": {
+      "main": [
+        [
+          {
+            "node": "Format Response1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response (No Integration)1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
             "type": "main",
             "index": 0
           }

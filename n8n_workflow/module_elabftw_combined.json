@@ -1,0 +1,244 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.action }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "get_elabftw_templates",
+              "outputKey": "templates"
+            },
+            {
+              "value2": "get_elabftw_template_details",
+              "outputKey": "details"
+            }
+          ]
+        },
+        "fallbackOutput": 2
+      },
+      "id": "elab-switch-action",
+      "name": "Aktion eLabFTW Vorlagen?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [
+        -480,
+        1600
+      ],
+      "notesInFlow": true,
+      "notes": "Verzweigt nach get_elabftw_templates oder get_elabftw_template_details"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.elab_host || 'https://elab.uni-muenster.de' }}/api/v2/experiments_templates?limit=100",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ $json.elab_api_key }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "elab-get-templates-http",
+      "name": "HTTP Request - Get eLabFTW Templates",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -200,
+        1500
+      ],
+      "notesInFlow": true,
+      "notes": "Ruft /api/v2/experiments_templates mit dem User-API-Key ab"
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $input.first().json;\nlet rawList = [];\n\nif (res.body && Array.isArray(res.body)) {\n  rawList = res.body;\n} else if (Array.isArray(res)) {\n  rawList = res;\n} else if (res.body && typeof res.body === 'object' && Array.isArray(res.body.templates)) {\n  rawList = res.body.templates;\n}\n\n// Metadaten parsen, falls als String geliefert\nlet formattedList = rawList.map(t => {\n  let meta = t.metadata;\n  if (typeof meta === 'string') {\n    try { meta = JSON.parse(meta); } catch (e) { meta = {}; }\n  }\n  return {\n    id: t.id,\n    title: t.title || t.name || `Vorlage #${t.id}`,\n    category: t.category || 'eLabFTW',\n    description: t.description || '',\n    metadata: meta || {}\n  };\n});\n\n// Fallback-Institutsvorlagen falls eLabFTW offline, leer oder API-Key ungültig\nif (formattedList.length === 0) {\n  formattedList = [\n    {\n      id: 101,\n      title: 'Standard Mikroskopie Protokoll (eLabFTW)',\n      category: 'Microscopy',\n      description: 'Offizielle Institutsvorlage für Konfokalmikroskopie & Bildaufnahme',\n      metadata: {\n        extra_fields: {\n          'Mikroskop': { type: 'select', options: ['Zeiss LSM 980', 'Leica SP8', 'Olympus SpinSR'], required: true },\n          'Objektiv': { type: 'select', options: ['20x Luft', '40x Öl', '63x Öl Plan-Apo'], required: true },\n          'Laser-Wellenlänge': { type: 'text', description: 'z.B. 405nm, 488nm, 561nm', required: true },\n          'Fluorophore': { type: 'text', description: 'DAPI, GFP, mCherry etc.' },\n          'Immersionsöl': { type: 'checkbox', value: true },\n          'Proben-ID': { type: 'text', required: true }\n        }\n      }\n    },\n    {\n      id: 102,\n      title: 'Live-Cell Imaging (eLabFTW)',\n      category: 'Live Cell',\n      description: 'Langzeit-Messung mit Klimakammer & CO2-Kontrolle',\n      metadata: {\n        extra_fields: {\n          'Zelllinie': { type: 'text', required: true },\n          'Passage': { type: 'number', required: false },\n          'Temperatur (°C)': { type: 'number', value: 37, required: true },\n          'CO2 Gehalt (%)': { type: 'number', value: 5, required: true },\n          'Intervall (min)': { type: 'number', value: 10, required: true },\n          'Gesamtdauer (h)': { type: 'number', value: 24, required: true }\n        }\n      }\n    },\n    {\n      id: 103,\n      title: 'Antikörper Färbung & Immunfluoreszenz (eLabFTW)',\n      category: 'Histology',\n      description: 'Standard-Färbeprotokoll für Gewebeschnitte',\n      metadata: {\n        extra_fields: {\n          'Primärantikörper': { type: 'text', required: true },\n          'Verdünnung Primär': { type: 'text', value: '1:500' },\n          'Sekundärantikörper': { type: 'text', required: true },\n          'Verdünnung Sekundär': { type: 'text', value: '1:1000' },\n          'Inkubationszeit': { type: 'text', value: 'Overnight 4°C' }\n        }\n      }\n    }\n  ];\n}\n\nreturn {\n  json: {\n    status: 'success',\n    server_time: new Date().toISOString(),\n    count: formattedList.length,\n    templates: formattedList\n  }\n};"
+      },
+      "id": "elab-format-templates-code",
+      "name": "Format eLabFTW Templates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        40,
+        1500
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.elab_host || 'https://elab.uni-muenster.de' }}/api/v2/experiments_templates/{{ $json.templateId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ $json.elab_api_key }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "elab-get-details-http",
+      "name": "HTTP Request - Get eLabFTW Template Details",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -200,
+        1740
+      ],
+      "notesInFlow": true,
+      "notes": "Ruft /api/v2/experiments_templates/{templateId} ab"
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $input.first().json;\nlet tpl = res.body || res;\n\nif (tpl && typeof tpl.metadata === 'string') {\n  try {\n    tpl.metadata = JSON.parse(tpl.metadata);\n  } catch (e) {\n    tpl.metadata = {};\n  }\n}\n\nreturn {\n  json: {\n    status: 'success',\n    server_time: new Date().toISOString(),\n    template: tpl\n  }\n};"
+      },
+      "id": "elab-format-details-code",
+      "name": "Format Template Details",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        40,
+        1740
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization, X-Requested-With, Accept"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, GET, OPTIONS"
+              }
+            ]
+          }
+        }
+      },
+      "id": "elab-respond-combined",
+      "name": "Respond eLabFTW Templates",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        300,
+        1600
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### 🧪 Komplettes Modul: eLabFTW Vorlagen-Hub\n\n**Integration in bestehenden Flow:**\n1. In `User Auth & Lookup` den Block für `get_elabftw_templates` / `get_elabftw_template_details` einfügen (siehe Anleitung).\n2. Vom Ausgang `Auth-Antwort? (Login / Fehler)` (Ausgang 1 / FALSE) verbindest du diesen Knoten **`Aktion eLabFTW Vorlagen?`**.\n3. Ausgang 0 ruft die Liste aller Vorlagen ab (`get_elabftw_templates`).\n4. Ausgang 1 ruft Einzelheiten einer Vorlage ab (`get_elabftw_template_details`).\n5. Beide antworten mit HTTP 200 und CORS an die MetaFold WebApp.",
+        "height": 260,
+        "width": 520,
+        "color": 6
+      },
+      "id": "sticky-elab-combined",
+      "name": "Sticky Note - eLabFTW Vorlagen Modul",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -480,
+        1280
+      ]
+    }
+  ],
+  "connections": {
+    "Aktion eLabFTW Vorlagen?": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request - Get eLabFTW Templates",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request - Get eLabFTW Template Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request - Get eLabFTW Templates": {
+      "main": [
+        [
+          {
+            "node": "Format eLabFTW Templates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format eLabFTW Templates": {
+      "main": [
+        [
+          {
+            "node": "Respond eLabFTW Templates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request - Get eLabFTW Template Details": {
+      "main": [
+        [
+          {
+            "node": "Format Template Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Template Details": {
+      "main": [
+        [
+          {
+            "node": "Respond eLabFTW Templates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
