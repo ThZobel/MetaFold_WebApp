@@ -116,6 +116,26 @@ export function createN8n({
     aiDraft.value.metadata[key] = arr;
   };
 
+  const buildTemplatePayload = (tpl) => ({
+    id: tpl.id,
+    name: tpl.name,
+    category: tpl.category,
+    description: tpl.description || '',
+    fields: (tpl.fields || []).map((f, idx) => ({
+      key: f.key,
+      label: f.label,
+      type: f.type,
+      origType: f.origType || f.type,
+      required: !!f.required,
+      position: f.position ?? (idx + 1),
+      unit: f.unit,
+      useForFilename: !!f.useForFilename,
+      options: f.options || [],
+      description: f.description || ''
+    })),
+    raw: tpl.raw || null
+  });
+
   const sendPayload = async (mode = 'direct') => {
     if (!auth.currentUser.value) {
       auth.openLogin();
@@ -143,18 +163,7 @@ export function createN8n({
           id: auth.currentUser.value.id,
           name: auth.currentUser.value.name
         },
-        template: {
-          id: currentTemplate.value.id,
-          name: currentTemplate.value.name,
-          category: currentTemplate.value.category,
-          fields: (currentTemplate.value.fields || []).map(f => ({
-            key: f.key,
-            label: f.label,
-            type: f.type,
-            options: f.options || [],
-            description: f.description || ''
-          }))
-        },
+        template: buildTemplatePayload(currentTemplate.value),
         metadata: formData.value,
         general_note: generalNote.value,
         integrations: Object.fromEntries(activeIntegrations.value.map(i => [i.id, integrationOn(i.id)]))
@@ -230,18 +239,7 @@ export function createN8n({
           id: auth.currentUser.value.id,
           name: auth.currentUser.value.name
         },
-        template: {
-          id: currentTemplate.value.id,
-          name: currentTemplate.value.name,
-          category: currentTemplate.value.category,
-          fields: (currentTemplate.value.fields || []).map(f => ({
-            key: f.key,
-            label: f.label,
-            type: f.type,
-            options: f.options || [],
-            description: f.description || ''
-          }))
-        },
+        template: buildTemplatePayload(currentTemplate.value),
         metadata: aiDraft.value?.metadata || formData.value,
         general_note: generalNote.value,
         ai_draft: aiDraft.value,

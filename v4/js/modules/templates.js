@@ -54,7 +54,7 @@ export const parseTpl = (raw, id, fallback = 'Vorlage') => {
   for (const key of order) {
     const f = obj[key];
     if (!f || typeof f !== 'object') continue;
-    if (f.type === 'group') { fields.push({ key, label: f.label || key, type: 'group' }); continue; }
+    if (f.type === 'group') { fields.push({ key, label: f.label || key, type: 'group', origType: 'group', position: f.position }); continue; }
     const t = f.type;
     const type = t === 'multicheckbox' ? 'multicheckbox'
       : (t === 'tags' || t === 'derived_from') ? 'tags'
@@ -64,9 +64,12 @@ export const parseTpl = (raw, id, fallback = 'Vorlage') => {
       : ['number', 'date', 'time', 'email', 'url'].includes(t) ? t : 'text';
     const dv = f.defaultValue ?? f.value ?? '';
     fields.push({
-      key, label: f.label || key, type, origType: t,
+      key, label: f.label || key, type, origType: t || type,
       options: Array.isArray(f.options) ? f.options : [],
       required: !!f.required,
+      position: f.position,
+      unit: f.unit,
+      useForFilename: !!f.useForFilename,
       defaultValue: type === 'checkbox' ? !!dv
         : (type === 'tags' || type === 'multicheckbox') ? (Array.isArray(dv) ? [...dv] : (dv ? [dv] : []))
         : type === 'rating' ? (Number(dv) || 0) : dv,
