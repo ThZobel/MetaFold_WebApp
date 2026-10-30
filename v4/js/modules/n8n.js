@@ -175,26 +175,39 @@ export function createN8n({
         body: JSON.stringify(payload)
       });
 
-      if (!res.ok) throw new Error('HTTP ' + res.status);
       const echo = await res.json().catch(() => null);
       serverEchoData.value = echo;
 
-      if (mode === 'ai_assistant' && echo && (echo.ai_draft || echo.draft || echo.status === 'ai_draft')) {
-        const d = echo.ai_draft || echo.draft || {};
-        if (typeof d === 'string') {
-          aiDraft.value = {
-            title: echo.title || currentTemplate.value?.name || '',
-            metadata: { ...formData.value },
-            additional_notes: d
-          };
+      if (!res.ok) {
+        const errDetail = echo?.message || echo?.error?.message || echo?.error || ('HTTP ' + res.status);
+        throw new Error(errDetail);
+      }
+
+      if (echo && (echo.status === 'error' || echo.is_auth_error || echo.error)) {
+        const errDetail = echo.message || echo.error?.message || echo.error || 'Server-Fehler in n8n';
+        throw new Error(errDetail);
+      }
+
+      if (mode === 'ai_assistant') {
+        if (echo && (echo.ai_draft || echo.draft || echo.status === 'ai_draft')) {
+          const d = echo.ai_draft || echo.draft || {};
+          if (typeof d === 'string') {
+            aiDraft.value = {
+              title: echo.title || currentTemplate.value?.name || '',
+              metadata: { ...formData.value },
+              additional_notes: d
+            };
+          } else {
+            aiDraft.value = {
+              title: d.title || (echo.title ?? currentTemplate.value?.name ?? ''),
+              metadata: (d.metadata && typeof d.metadata === 'object') ? { ...d.metadata } : { ...formData.value },
+              additional_notes: d.additional_notes || d.notes || d.text || ''
+            };
+          }
+          editingAiField.value = null;
         } else {
-          aiDraft.value = {
-            title: d.title || (echo.title ?? currentTemplate.value?.name ?? ''),
-            metadata: (d.metadata && typeof d.metadata === 'object') ? { ...d.metadata } : { ...formData.value },
-            additional_notes: d.additional_notes || d.notes || d.text || ''
-          };
+          throw new Error(echo?.message || 'KI-Assistent hat keinen Entwurf zurückgegeben. Bitte prüfe den Knoten "LLM Draft Request1" in n8n.');
         }
-        editingAiField.value = null;
       } else {
         sent.value = true;
         if (auth.autoLogoutAfterSend.value) {
@@ -207,7 +220,7 @@ export function createN8n({
     } catch (err) {
       let msg = err.message || '';
       if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
-        msg = 'Verbindungsfehler (Failed to fetch). Bitte prüfe in den Einstellungen (⚙️), ob n8n erreichbar und der Workflow aktiv ist.';
+        msg = 'Verbindungsfehler (Failed to fetch) oder unvollständige Antwort aus n8n. Bitte prüfe in n8n, ob ein Knoten (z. B. LLM Draft Request1) mit einem Fehler abgebrochen ist.';
       }
       sendError.value = (tr('alerts.sendError') || 'Fehler beim Senden') + ': ' + msg;
     } finally {
@@ -252,9 +265,14 @@ export function createN8n({
         body: JSON.stringify(payload)
       });
 
-      if (!res.ok) throw new Error('HTTP ' + res.status);
       const echo = await res.json().catch(() => null);
       serverEchoData.value = echo;
+
+      if (!res.ok || (echo && (echo.status === 'error' || echo.is_auth_error || echo.error))) {
+        const errDetail = echo?.message || echo?.error?.message || echo?.error || ('HTTP ' + res.status);
+        throw new Error(errDetail);
+      }
+
       aiDraft.value = null;
       editingAiField.value = null;
       sent.value = true;

@@ -2,7 +2,7 @@
  * MetaFold Mobile Terminal v4 - Service Worker
  */
 
-const CACHE_NAME = 'metafold-v4-cache-v1';
+const CACHE_NAME = 'metafold-v4-cache-v2';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

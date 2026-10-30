@@ -31,10 +31,16 @@ const app = createApp({
     };
 
     // 3. Central Configuration
+    const cleanUrl = (val, fallback = '') => {
+      if (typeof val !== 'string') return fallback;
+      const cleaned = val.trim().replace(/^["'\s]+|["'\s]+$/g, '');
+      return cleaned || fallback;
+    };
+
     const config = ref({
-      libraryUrl: localStorage.getItem('metafold_library_url') || DEFAULT_LIB,
-      n8nWebhookUrl: localStorage.getItem('metafold_n8n_url') || '',
-      whisperWebhookUrl: localStorage.getItem('metafold_whisper_url') || ''
+      libraryUrl: cleanUrl(load('metafold_library_url', DEFAULT_LIB), DEFAULT_LIB),
+      n8nWebhookUrl: cleanUrl(load('metafold_n8n_url', '')),
+      whisperWebhookUrl: cleanUrl(load('metafold_whisper_url', ''))
     });
 
     // 4. Modal Settings State & Collapsible Sticky Accordions (Apple / Android Style)
@@ -65,9 +71,12 @@ const app = createApp({
       }
     };
     const closeSettings = () => {
+      config.value.libraryUrl = cleanUrl(config.value.libraryUrl, DEFAULT_LIB);
+      config.value.n8nWebhookUrl = cleanUrl(config.value.n8nWebhookUrl);
+      config.value.whisperWebhookUrl = cleanUrl(config.value.whisperWebhookUrl);
       save('metafold_library_url', config.value.libraryUrl);
       save('metafold_n8n_url', config.value.n8nWebhookUrl);
-      save('metafold_whisper_url', config.value.whisperWebhookUrl || '');
+      save('metafold_whisper_url', config.value.whisperWebhookUrl);
       if (templatesModule) {
         save('metafold_category_names', templatesModule.categoryNames.value);
       }
